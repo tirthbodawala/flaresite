@@ -1,0 +1,71 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalEnv": ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"],
+  "tasks": {
+    "setup": {
+      "outputs": []
+    },
+    "build": {
+      "dependsOn": ["@flarekit/database#build"],
+      "cache": false,
+      "outputs": []
+    },
+    "preview": {
+      "dependsOn": [
+        "@flarekit/database#build",
+        "@flarekit/database#migrate:d1:test",
+        "build"
+      ],
+      "outputs": [],
+      "persistent": true
+    },
+    "test": {
+      "dependsOn": ["@flarekit/database#build"],
+      "cache": false,
+      "outputs": []
+    },
+    "test:coverage": {
+      "dependsOn": ["@flarekit/database#build"],
+      "cache": false,
+      "outputs": []
+    },
+    "test:watch": {
+      "dependsOn": ["@flarekit/database#build"],
+      "cache": false,
+      "outputs": [],
+      "persistent": true
+    },
+    "test:e2e": {
+      "dependsOn": [],
+      "outputs": []
+    },
+    "test:e2e:watch": {
+      "dependsOn": [],
+      "outputs": []
+    },
+    "build:migrations": {
+      "outputs": []
+    },
+    "migrate:d1:test": {
+      "outputs": []
+    },
+    "migrate:d1:local": {
+      "outputs": []
+    },
+    "migrate:d1:production": {
+      "outputs": []
+    },
+    "@flarekit/database#build": {
+      "cache": false,
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "dependsOn": ["@flarekit/database#build"],
+      "persistent": true,
+      "cache": false,
+      "inputs": [],
+      "outputs": []
+    }
+  }
+}

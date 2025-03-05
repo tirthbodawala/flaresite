@@ -1,0 +1,75 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Develop",
+      "detail": "Run all packages in development mode",
+      "type": "shell",
+      "command": "npm run dev",
+      "group": "build"
+    },
+    {
+      "label": "Build",
+      "detail": "Build all packages in production mode",
+      "type": "shell",
+      "command": "npm run build",
+      "group": "build"
+    },
+    {
+      "label": "Preview",
+      "detail": "Build and preview all packages",
+      "type": "shell",
+      "command": "npm run preview"
+    },
+    {
+      "label": "Test",
+      "type": "shell",
+      "detail": "Test all packages",
+      "command": "npm run test",
+      "group": "test"
+    },
+    {
+      "label": "Test (Watch)",
+      "type": "shell",
+      "detail": "Run Test in watch mode",
+      "command": "npm run test:watch",
+      "group": "test"
+    },
+    {
+      "label": "Test E2E",
+      "type": "shell",
+      "detail": "Run End to End Tests for the packages",
+      "command": "npm run test:e2e",
+      "group": "test"
+    },
+    {
+      "label": "Test E2E (UI Mode)",
+      "type": "shell",
+      "detail": "Run End to End Tests for the packages with Playwright UI",
+      "command": "npm run test:e2e:watch",
+      "group": "test"
+    },
+    {
+      "label": "Lint",
+      "type": "shell",
+      "command": "npm run lint"
+    },
+    {
+      "label": "Format",
+      "type": "shell",
+      "command": "npm run format"
+    },
+
+    // --- Extra Flarekit Commands ---
+    {
+      "label": "Build & Migrate Locally",
+      "type": "shell",
+      "command": "npx flarekit build:migrations && npx flarekit migrate:d1:local"
+    },
+    {
+      "label": "Build Migrations",
+      "type": "shell",
+      "command": "npx flarekit build:migrations"
+    }
+  ]
+}

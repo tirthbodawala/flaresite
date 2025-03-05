@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "./dist/types",
+    "outDir": "dist",
+    "lib": ["ESNext"],
+    "types": ["@cloudflare/workers-types"],
+    "paths": {
+      "@schema/*": ["./src/schema/*"],
+      "@services/*": ["./src/services/*"]
+    }
+  },
+  "include": ["worker-configuration.d.ts", "src/**/*.ts"]
+}

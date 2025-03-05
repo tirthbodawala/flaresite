@@ -1,0 +1,53 @@
+---
+import Layout from "@layouts/Layout.astro";
+import "./_style.css";
+import { getCdnUrl } from "@utils/cdn.util";
+
+const DB = Astro.locals.DB;
+const records = await DB.storage.listStorageRecords();
+const { PUBLIC_BACKEND_ENDPOINT, PUBLIC_CDN_URL } = Astro.locals.runtime.env;
+---
+
+<Layout showNotification>
+  <div class="container">
+    {!records.length && <div class="no-image">No Images uploaded yet.</div>}
+    <div class="masonry">
+      {
+        records.map((record) => (
+          <img
+            loading="lazy"
+            src={getCdnUrl(Astro.locals.runtime.env, record.key)}
+            alt={record.originalName}
+          />
+        ))
+      }
+    </div>
+  </div>
+
+  <form
+    method="post"
+    enctype="multipart/form-data"
+    action="/upload"
+    id="upload-form"
+  >
+    <label class="floating-upload-btn">
+      <div class="btn">
+        <input
+          type="file"
+          id="file"
+          name="images[]"
+          accept="image/*"
+          multiple
+        />
+        <span>+ Upload Images</span>
+      </div>
+      <span class="loader">Uploading Images...</span>
+    </label>
+  </form>
+</Layout>
+
+<script is:inline define:vars={{ PUBLIC_BACKEND_ENDPOINT, PUBLIC_CDN_URL }}>
+  window.PUBLIC_BACKEND_ENDPOINT = PUBLIC_BACKEND_ENDPOINT;
+  window.PUBLIC_CDN_URL = PUBLIC_CDN_URL;
+</script>
+<script src="./browser.ts"></script>

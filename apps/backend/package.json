@@ -1,0 +1,26 @@
+{
+  "name": "@flarekit/backend",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled --persist-to=../../.wrangler/state --port=8000",
+    "preview": "wrangler dev --test-scheduled --persist-to=../../.wrangler/.test/state --port=8000 --inspector-port=9230 --show-interactive-dev-session=false",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@flarekit/database": "*",
+    "hono": "^4.7.2"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.7.5",
+    "@cloudflare/workers-types": "^4.20250303.0",
+    "@types/node": "^22.13.9",
+    "typescript": "^5.8.2",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.0.7",
+    "wrangler": "^3.112.0"
+  },
+  "version": "1.0.1"
+}

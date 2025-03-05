@@ -1,0 +1,58 @@
+{
+  "name": "flarekit",
+  "version": "1.0.1",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "flarekit": "./scripts/flarekit.mjs",
+    "e2e": "./scripts/e2e-workflow.mjs"
+  },
+  "scripts": {
+    "cleanup": "node ./scripts/cleanup.mjs",
+    "setup": "node ./scripts/setup-wrangler.mjs",
+    "dev": "npx flarekit dev",
+    "build": "npx flarekit build",
+    "preview": "npx flarekit --ui=stream preview",
+    "test": "npx flarekit test",
+    "test:coverage": "npx flarekit test:coverage",
+    "test:watch": "npx flarekit test:watch",
+    "test:e2e": "npx e2e --wait-for=http://localhost:8000 --wait-for=http://localhost:7001 --timeout=120",
+    "test:e2e:watch": "npx e2e --wait-for=http://localhost:8000 --wait-for=http://localhost:7001 --timeout=120 --watch",
+    "prepare": "npm exec husky || echo 'Husky not found, skipping...'",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@types/eslint-config-prettier": "^6.11.3",
+    "eslint": "^9.21.0",
+    "eslint-config-prettier": "^10.0.2",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-prettier": "^5.2.3",
+    "eslint-plugin-react": "^7.37.4",
+    "glob": "^11.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "tsc-alias": "^1.8.11",
+    "turbo": "^2.4.4",
+    "typescript": "^5.8.2",
+    "wrangler": "^3.112.0"
+  },
+  "engines": {
+    "node": ">=18.17.1"
+  },
+  "packageManager": "npm@11.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,astro}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,scss,json,md}": "prettier --write"
+  },
+  "dependencies": {
+    "@types/node": "^22.13.9"
+  }
+}

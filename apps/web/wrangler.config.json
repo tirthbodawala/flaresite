@@ -1,0 +1,5 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "flarekit-web",
+  "pages_build_output_dir": "./dist"
+}

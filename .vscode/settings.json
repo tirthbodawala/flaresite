@@ -1,0 +1,18 @@
+{
+  "coverage-gutters.coverageFileNames": [
+    "clover.xml",
+    "lcov.info",
+    "coverage.xml",
+    "cov.xml"
+  ],
+  "coverage-gutters.showGutterCoverage": true,
+  "editor.formatOnSave": true,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "astro", // Enable .astro
+    "typescript", // Enable .ts
+    "typescriptreact" // Enable .tsx
+  ],
+  "prettier.requireConfig": true
+}

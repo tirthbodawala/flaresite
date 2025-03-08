@@ -1,10 +1,21 @@
-import { initDBInstance } from '@flarekit/database';
 import { Handler, Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { uploadHandler } from './routes/upload.route';
+import { fromHono } from 'chanfana';
 
 const app = new Hono<{ Bindings: Env }>();
 app.use(cors());
+
+const openapi = fromHono(app, {
+  openapi_url: '/openapi.json', // Endpoint to serve the OpenAPI spec
+  docs_url: '/docs', // Endpoint to serve the Swagger UI
+  schema: {
+    info: {
+      title: 'Hono API Documentation',
+      version: '1.0.0',
+      description: 'API documentation for Hono routes',
+    },
+  },
+});
 
 const honoHomeRoute: Handler = (c) => {
   return c.json({
@@ -13,10 +24,7 @@ const honoHomeRoute: Handler = (c) => {
   });
 };
 
-app.post('/upload', uploadHandler);
-
-app.get('/', honoHomeRoute);
-
+app.all('/', honoHomeRoute);
 export { app };
 
 export default {
@@ -31,21 +39,21 @@ export default {
 
   /* istanbul ignore next: Cannot test scheduled invocation */
   // scheduled(event: ScheduledEvent, env: Environment, ctx: ExecutionContext)
-  async scheduled(event, env, ctx) {
-    const db = initDBInstance(ctx, env);
-    // Pass a promise
-    ctx.waitUntil(
-      (async () => {
-        // Clear the storage every 2th minute
-        if (event.cron.startsWith('*/2')) {
-          const storageRecords = await db.storage.listStorageRecords();
-          // Remove each storage record from
-          for (const record of storageRecords) {
-            await env.STORAGE.delete(record.key);
-          }
-          await db.storage.clearStorageRecords();
-        }
-      })(),
-    );
-  },
+  // async scheduled(event, env, ctx) {
+  //   const db = initDBInstance(ctx, env);
+  //   // Pass a promise
+  //   ctx.waitUntil(
+  //     (async () => {
+  //       // Clear the storage every 2th minute
+  //       if (event.cron.startsWith('*/2')) {
+  //         const storageRecords = await db.storage.listStorageRecords();
+  //         // Remove each storage record from
+  //         for (const record of storageRecords) {
+  //           await env.STORAGE.delete(record.key);
+  //         }
+  //         await db.storage.clearStorageRecords();
+  //       }
+  //     })(),
+  //   );
+  // },
 } satisfies ExportedHandler<Env>;

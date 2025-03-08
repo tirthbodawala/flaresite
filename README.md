@@ -2,7 +2,7 @@
   <img src="https://cdn.atyantik.com/flarekit-logo-480p.webp" alt="Flarekit" width="200">
 </p>
 
-# Flarekit
+# Flaresite
 
 ![License](https://img.shields.io/github/license/Atyantik/flarekit)
 

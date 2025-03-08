@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/d1';
-import { createFlarekitServices } from './proxy';
-import * as services from './services';
+import { schemas } from './schemas';
 import type { Ctx } from './types';
+import { services } from './services';
 
 const drizzleDBMap = new WeakMap<object, Ctx>();
 
@@ -12,17 +12,16 @@ export const initDBInstance = (reference: object, env: Env) => {
   let instance = drizzleDBMap.get(reference);
 
   if (!instance) {
-    const db = drizzle(env.DB);
+    const db = drizzle(env.DB, {
+      schema: schemas,
+    });
     instance = {
       db,
-      cache: env.CACHE,
-      queue: env.QUEUE,
     };
     drizzleDBMap.set(reference, instance);
   }
 
-  // Wrap the "services" in the "createFlarekitServices" proxy
-  return createFlarekitServices(instance, services);
+  return services(instance);
 };
 
 export default {

@@ -35,10 +35,10 @@ describe('content.service', () => {
   // In your real tests, you might have a separate user creation utility.
   async function createUserIfNeeded() {
     // If your code references a user table, you might do:
-    return await db.users.create({
+    return await db.users.createUser({
       username: 'test',
       email: 'test@flaresite.com',
-      passwordHash: 'hash',
+      plainPassword: 'hash',
     });
   }
 

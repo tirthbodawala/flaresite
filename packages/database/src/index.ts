@@ -2,6 +2,8 @@ import { drizzle } from 'drizzle-orm/d1';
 import { schemas } from './schemas';
 import type { Ctx } from './types';
 import { services } from './services';
+import { ServiceError } from './classes/service_error.class';
+import { slugify } from '@utils/slugify.util';
 
 const drizzleDBMap = new WeakMap<object, Ctx>();
 
@@ -24,7 +26,11 @@ export const initDBInstance = (reference: object, env: Env) => {
   return services(instance);
 };
 
+export { ServiceError, slugify };
+
 export default {
   initDBInstance,
   getInstance,
+  ServiceError,
+  slugify,
 };

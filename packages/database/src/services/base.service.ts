@@ -7,12 +7,13 @@ import {
   getTableColumns,
   inArray,
 } from 'drizzle-orm';
-import { Ctx } from '../types';
 import { v7 as uuidv7 } from 'uuid';
 import { generateShortId } from '@utils/short_id.util';
 import { SQLiteTable } from 'drizzle-orm/sqlite-core';
-import { toSQLiteUTCString } from '../utils/date.util';
 import { slugify } from '@utils/slugify.util';
+import { toSQLiteUTCString } from '@utils/date.util';
+import { ServiceError } from '../classes/service_error.class';
+import { Ctx } from '../types';
 
 export interface HasDateFields {
   createdAt?: string | Date | null;
@@ -47,7 +48,10 @@ export function getTableQuery(ctx: Ctx, tableName: string) {
     >
   )[tableName];
   if (!queryInterface || typeof queryInterface.findFirst !== 'function') {
-    throw new Error(`Query interface missing for table: ${tableName}`);
+    throw new ServiceError(
+      400,
+      `Query interface missing for table: ${tableName}`,
+    );
   }
   return queryInterface;
 }
@@ -56,13 +60,13 @@ export class BaseService<
   TInsert extends GenericInsertType,
   TSelect extends GenericSelectType,
 > {
-  #ctx: Ctx;
+  protected ctx: Ctx;
 
   constructor(
     public schema: SQLiteTable,
     ctx: Ctx,
   ) {
-    this.#ctx = ctx;
+    this.ctx = ctx;
   }
 
   #prepareData(
@@ -80,7 +84,10 @@ export class BaseService<
       if ('enumValues' in column && column.enumValues) {
         const fieldValue = preparedData[column.name];
         if (fieldValue && !column.enumValues.includes(fieldValue)) {
-          throw new Error(`Invalid value '${fieldValue}' for ${column.name}`);
+          throw new ServiceError(
+            400,
+            `Invalid value '${fieldValue}' for ${column.name}`,
+          );
         }
       }
     }
@@ -117,7 +124,8 @@ export class BaseService<
           strict: true,
         });
       } else if (isCreate) {
-        throw new Error(
+        throw new ServiceError(
+          400,
           "Slug is empty and 'title' field is missing or invalid.",
         );
       }
@@ -150,13 +158,13 @@ export class BaseService<
     }
 
     // Perform insertion explicitly typed
-    const insertedRows = await this.#ctx.db
+    const insertedRows = await this.ctx.db
       .insert(this.schema)
       .values(finalData as TInsert)
       .returning();
 
     if (!insertedRows || insertedRows.length === 0) {
-      throw new Error('Insertion failed: No rows returned.');
+      throw new ServiceError(500, 'Insertion failed: No rows returned.');
     }
 
     // Type assertion to explicitly guarantee TSelect compatibility
@@ -172,11 +180,14 @@ export class BaseService<
 
     // Ensure the 'id' field is part of schema before forming the WHERE condition
     if (!('id' in columns)) {
-      throw new Error(`Schema does not have an 'id' field, cannot update.`);
+      throw new ServiceError(
+        400,
+        `Schema does not have an 'id' field, cannot update.`,
+      );
     }
 
     // Perform update query explicitly typed
-    const updatedRows = await this.#ctx.db
+    const updatedRows = await this.ctx.db
       .update(this.schema)
       .set(finalData as TInsert)
       .where(eq(columns.id, id))
@@ -184,7 +195,7 @@ export class BaseService<
 
     // Check if update affected any row
     if (!updatedRows || updatedRows.length === 0) {
-      throw new Error(`No record found with ID: ${id}`);
+      throw new ServiceError(404, `No record found with ID: ${id}`);
     }
 
     // Explicitly ensure returned data matches TSelect
@@ -196,41 +207,43 @@ export class BaseService<
 
     // Ensure 'id' field exists in schema
     if (!('id' in columns)) {
-      throw new Error(
+      throw new ServiceError(
+        400,
         "Schema does not have an 'id' field, cannot perform delete operation.",
       );
     }
 
     if (permanent) {
       // Perform permanent deletion
-      const deletedRows = await this.#ctx.db
+      const deletedRows = await this.ctx.db
         .delete(this.schema)
         .where(eq(columns.id, id))
         .returning();
 
       if (!deletedRows || deletedRows.length === 0) {
-        throw new Error(`No record found with ID: ${id}`);
+        throw new ServiceError(404, `No record found with ID: ${id}`);
       }
 
       return deletedRows[0] as TSelect;
     } else {
       // Soft deletion: ensure 'deletedAt' field exists
       if (!('deletedAt' in columns)) {
-        throw new Error(
+        throw new ServiceError(
+          400,
           "Schema does not have a 'deletedAt' field, cannot perform soft delete.",
         );
       }
 
       const now = toSQLiteUTCString(new Date());
 
-      const updatedRows = await this.#ctx.db
+      const updatedRows = await this.ctx.db
         .update(this.schema)
         .set({ deletedAt: now } as Partial<TInsert>)
         .where(eq(columns.id, id))
         .returning();
 
       if (!updatedRows || updatedRows.length === 0) {
-        throw new Error(`No record found with ID: ${id}`);
+        throw new ServiceError(404, `No record found with ID: ${id}`);
       }
 
       return updatedRows[0] as TSelect;
@@ -241,13 +254,14 @@ export class BaseService<
     const columns = getTableColumns(this.schema);
 
     if (!('id' in columns)) {
-      throw new Error(
+      throw new ServiceError(
+        400,
         "Schema does not have an 'id' field, cannot perform getById operation.",
       );
     }
 
     const tableName = getTableName(this.schema);
-    const tableQuery = getTableQuery(this.#ctx, tableName);
+    const tableQuery = getTableQuery(this.ctx, tableName);
 
     const record = await tableQuery.findFirst({
       where: (fields: unknown) => {
@@ -277,10 +291,10 @@ export class BaseService<
     const columns = getTableColumns(this.schema);
 
     if (!('shortId' in columns)) {
-      throw new Error("Schema does not have a 'shortId' field.");
+      throw new ServiceError(400, "Schema does not have a 'shortId' field.");
     }
 
-    const tableQuery = getTableQuery(this.#ctx, getTableName(this.schema));
+    const tableQuery = getTableQuery(this.ctx, getTableName(this.schema));
 
     const record = await tableQuery.findFirst({
       where: (fields: unknown) => {
@@ -310,7 +324,7 @@ export class BaseService<
   ): Promise<TSelect[]> {
     const columns = getTableColumns(this.schema);
     const tableName = getTableName(this.schema);
-    const tableQuery = getTableQuery(this.#ctx, tableName);
+    const tableQuery = getTableQuery(this.ctx, tableName);
 
     const conditions = [];
 
@@ -349,12 +363,14 @@ export class BaseService<
     // Validate each update explicitly
     updates.forEach(({ id, data }) => {
       if (!id) {
-        throw new Error(
+        throw new ServiceError(
+          400,
           'bulkUpdate error: Every update must include a valid ID.',
         );
       }
       if (typeof data !== 'object' || !data) {
-        throw new Error(
+        throw new ServiceError(
+          400,
           `bulkUpdate error: Update data for ID ${id} is invalid.`,
         );
       }
@@ -370,7 +386,8 @@ export class BaseService<
     // Validate each id explicitly
     ids.forEach((id, index) => {
       if (typeof id !== 'string' || !id.trim()) {
-        throw new Error(
+        throw new ServiceError(
+          400,
           `bulkDelete error: Invalid ID provided at position ${index}.`,
         );
       }
@@ -379,13 +396,14 @@ export class BaseService<
     const columns = getTableColumns(this.schema);
 
     if (!('id' in columns)) {
-      throw new Error(
+      throw new ServiceError(
+        400,
         "Schema does not have an 'id' field, cannot perform getById operation.",
       );
     }
 
     if (permanent) {
-      const deletedRows = await this.#ctx.db
+      const deletedRows = await this.ctx.db
         .delete(this.schema)
         .where(inArray(columns.id, ids))
         .returning();
@@ -393,7 +411,7 @@ export class BaseService<
       return deletedRows as TSelect[];
     } else {
       const now = toSQLiteUTCString(new Date());
-      const updatedRows = await this.#ctx.db
+      const updatedRows = await this.ctx.db
         .update(this.schema)
         .set({ deletedAt: now })
         .where(inArray(columns.id, ids))

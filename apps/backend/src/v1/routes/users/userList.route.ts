@@ -1,35 +1,52 @@
-import { createRoute, z, type RouteHandler } from '@hono/zod-openapi';
-import { initDBInstance } from '@flarekit/database';
-import { UserPublicSchema } from '@v1/schemas/user.schema';
+import { createRoute, z, type RouteHandler } from "@hono/zod-openapi";
+import { initDBInstance } from "@flarekit/database";
+import { UserPublicSchema } from "@v1/schemas/user.schema";
 import {
   BadRequestErrorSchema,
+  ForbiddenErrorSchema,
   ServerErrorSchema,
-} from '@v1/schemas/error.schema';
-import { ListQuerySchema } from '@v1/schemas/listQuery.schema';
+} from "@v1/schemas/error.schema";
+import { ListQuerySchema } from "@v1/schemas/listQuery.schema";
+import type { AppContext } from "@/types";
+import { HeadersSchema } from "@/v1/schemas/headers.scheme";
 
 // Define the route using createRoute
 export const userListRoute = createRoute({
-  method: 'get',
-  path: '/api/v1/user',
-  summary: 'List User with pagination, sorting, and filtering',
-  tags: ['User'],
+  method: "get",
+  path: "/api/v1/user",
+  summary: "List User with pagination, sorting, and filtering",
+  tags: ["User"],
+  security: [
+    {
+      Bearer: [],
+    },
+  ],
   request: {
+    headers: HeadersSchema,
     query: ListQuerySchema,
   },
   responses: {
     200: {
-      description: 'Successfully fetched user list',
+      description: "Successfully fetched user list",
       content: {
-        'application/json': { schema: z.array(UserPublicSchema) },
+        "application/json": { schema: z.array(UserPublicSchema) },
       },
     },
     400: {
-      description: 'Invalid request parameters',
-      content: { 'application/json': { schema: BadRequestErrorSchema } },
+      description: "Invalid request parameters",
+      content: { "application/json": { schema: BadRequestErrorSchema } },
+    },
+    403: {
+      description: "Access Denied",
+      content: {
+        "application/json": {
+          schema: ForbiddenErrorSchema,
+        },
+      },
     },
     500: {
-      description: 'Internal Server Error',
-      content: { 'application/json': { schema: ServerErrorSchema } },
+      description: "Internal Server Error",
+      content: { "application/json": { schema: ServerErrorSchema } },
     },
   },
 });
@@ -37,13 +54,13 @@ export const userListRoute = createRoute({
 // Handler Function
 export const userListHandler: RouteHandler<
   typeof userListRoute,
-  { Bindings: Env }
+  AppContext
 > = async (c) => {
   const db = initDBInstance(c.env, c.env);
-  const { range, sort, filter } = c.req.valid('query');
+  const { range, sort, filter } = c.req.valid("query");
 
   const parsedRange = range ? JSON.parse(range) : [0, 9];
-  const parsedSort = sort ? JSON.parse(sort) : ['createdAt', 'DESC'];
+  const parsedSort = sort ? JSON.parse(sort) : ["createdAt", "DESC"];
   const parsedFilter = filter ? JSON.parse(filter) : {};
 
   // Fetch paginated user
@@ -56,7 +73,7 @@ export const userListHandler: RouteHandler<
 
   return c.json(userList, 200, {
     // Set User-Range header (important for React-Admin)
-    'User-Range': `user ${parsedRange[0]}-${parsedRange[1]}/${totalItems}`,
-    'Access-Control-Expose-Headers': 'User-Range', // Ensures React-Admin can read it
+    "User-Range": `user ${parsedRange[0]}-${parsedRange[1]}/${totalItems}`,
+    "Access-Control-Expose-Headers": "User-Range", // Ensures React-Admin can read it
   });
 };

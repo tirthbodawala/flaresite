@@ -1,31 +1,34 @@
-import { OpenAPIHono, RouteHandler } from '@hono/zod-openapi';
-import { Handler, type Context } from 'hono';
-import routesv1 from './v1/routes';
-import { swaggerUI } from '@hono/swagger-ui';
+import { OpenAPIHono, RouteHandler } from "@hono/zod-openapi";
+import { Handler } from "hono";
+import routesv1 from "./v1/routes";
+import { swaggerUI } from "@hono/swagger-ui";
 
-import { cors } from 'hono/cors';
-import { ZodError } from 'zod';
-import { ServiceError } from '@flarekit/database';
-import { ContentfulStatusCode } from 'hono/utils/http-status';
-import { ApiError } from './classes/ApiError.class';
+import { cors } from "hono/cors";
+import { ZodError } from "zod";
+import { ServiceError } from "@flarekit/database";
+import { ContentfulStatusCode } from "hono/utils/http-status";
+import { ApiError } from "./classes/ApiError.class";
+import { authMiddleware } from "@v1/middlewares/auth.middleware";
+import type { AppContext } from "./types";
+import { Context } from "hono";
 
-const handleError = (ex: unknown, c: Context<{ Bindings: Env }>) => {
+const handleError = (ex: unknown, c: Context<AppContext>) => {
   if (
     ex instanceof ZodError ||
-    (typeof ex === 'object' &&
+    (typeof ex === "object" &&
       ex !== null &&
-      'name' in ex &&
-      ex.name === 'ZodError')
+      "name" in ex &&
+      ex.name === "ZodError")
   ) {
     let e = ex as ZodError;
     return c.json(
       {
         status: 400,
         message:
-          e.issues.map((i) => i.message).join(', ') ||
-          'Invalid request parameters',
+          e.issues.map((i) => i.message).join(", ") ||
+          "Invalid request parameters",
         details: e.issues.map((issue) => ({
-          parameter: issue.path.join('.'),
+          parameter: issue.path.join("."),
           issue: issue.message,
         })),
       },
@@ -40,19 +43,18 @@ const handleError = (ex: unknown, c: Context<{ Bindings: Env }>) => {
     return c.json(ex.toJSON(), ex.status as ContentfulStatusCode);
   }
 
-  console.error('Unexpected Error:', ex);
+  console.error("Unexpected Error:", ex);
   return c.json(
     {
       status: 500,
-      message: 'An unexpected error occurred',
-      details: { stack: ex instanceof Error ? ex.stack?.split('\n') : [] },
+      message: "An unexpected error occurred",
+      details: { stack: ex instanceof Error ? ex.stack?.split("\n") : [] },
     },
     500,
   );
 };
-
 // Initialize Hono app with OpenAPI support
-const app = new OpenAPIHono<{ Bindings: Env }>({
+const app = new OpenAPIHono<AppContext>({
   defaultHook: (result, c) => {
     if (!result.success) {
       return handleError(result.error, c);
@@ -74,26 +76,39 @@ app.onError((err, c) => {
 const honoHomeRoute: Handler = (c) => {
   return c.json({
     success: true,
-    message: 'Welcome to Flarekit APIs!',
+    message: "Welcome to Flarekit APIs!",
   });
 };
-app.all('/', honoHomeRoute);
+app.all("/", honoHomeRoute);
 
+app.openAPIRegistry.registerComponent("securitySchemes", "Bearer", {
+  type: "http",
+  scheme: "bearer",
+});
+
+// Register middleware for routes v1
+app.use("/api/v1/*", authMiddleware);
 // Register all routes
 routesv1.forEach(({ route, handler }) => {
   app.openapi(route, handler as RouteHandler<any, any>);
 });
 
 // Serve the OpenAPI documentation at /doc
-app.doc('/specification.json', {
-  openapi: '3.0.0',
+app.doc("/specification.json", {
+  openapi: "3.0.0",
   info: {
-    version: '1.0.0',
-    title: 'Flaresite API',
+    version: "1.0.0",
+    title: "Flaresite API",
   },
 });
 
-app.get('/docs', swaggerUI({ url: '/specification.json' }));
+app.get(
+  "/docs",
+  swaggerUI({
+    url: "/specification.json",
+    persistAuthorization: true,
+  }),
+);
 
 export { app };
 

@@ -1,4 +1,4 @@
-import { z } from '@hono/zod-openapi';
+import { z } from "@hono/zod-openapi";
 
 export const BaseErrorSchema = z.object({
   status: z.number(),
@@ -15,29 +15,33 @@ export const BaseErrorSchema = z.object({
 
 export const BadRequestErrorSchema = BaseErrorSchema.extend({
   status: z.number().default(400),
-}).openapi('Error.BadRequest', {});
+}).openapi("Error.BadRequestError", {});
+
+export const ForbiddenErrorSchema = BaseErrorSchema.extend({
+  status: z.number().default(403),
+}).openapi("Error.ForbiddenError", {});
 
 export const ServerErrorSchema = BaseErrorSchema.extend({
   status: z.number().default(500),
   details: z.object({
     stack: z.array(z.string()),
   }),
-}).openapi('Error.ServerError');
+}).openapi("Error.ServerError");
 
 export const NotFoundErrorSchema = BaseErrorSchema.extend({
   status: z.number().default(404),
-  message: z.string().default('Resource not found.'),
+  message: z.string().default("Resource not found."),
 })
   .omit({
     details: true,
   })
-  .openapi('Error.NotFoundError');
+  .openapi("Error.NotFoundError");
 
 export const UnauthorizedErrorSchema = BaseErrorSchema.extend({
   status: z.number().default(401),
-  message: z.string().default('Invalid credentials'),
+  message: z.string().default("Invalid credentials"),
 })
   .omit({
     details: true,
   })
-  .openapi('Error.UnauthorizedError');
+  .openapi("Error.UnauthorizedError");

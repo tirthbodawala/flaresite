@@ -12,10 +12,10 @@ import { HeadersSchema } from "@/v1/schemas/headers.scheme";
 import { ApiError } from "@/classes/ApiError.class";
 
 // Define the route using createRoute
-export const userGetByIdRoute = createRoute({
+export const authorsGetByIdRoute = createRoute({
   method: "get",
-  path: "/api/v1/user/{id}",
-  summary: "Get a single user resource by ID",
+  path: "/api/v1/authors/{id}",
+  summary: "Get a single author resource by ID",
   tags: ["User"],
   security: [
     {
@@ -45,7 +45,7 @@ export const userGetByIdRoute = createRoute({
       content: { "application/json": { schema: BadRequestErrorSchema } },
     },
     404: {
-      description: "User not found",
+      description: "Author not found",
       content: { "application/json": { schema: NotFoundErrorSchema } },
     },
     403: {
@@ -63,11 +63,11 @@ export const userGetByIdRoute = createRoute({
   },
 });
 
-export const userGetByIdHandler: RouteHandler<
-  typeof userGetByIdRoute,
+export const authorsGetByIdHandler: RouteHandler<
+  typeof authorsGetByIdRoute,
   AppContext
 > = async (c) => {
-  if (!c.var.can("view_users")) {
+  if (!c.var.can("view_authors")) {
     throw new ApiError(403, "You do not have permission to view user");
   }
   const db = initDBInstance(c.env, c.env);
@@ -80,7 +80,7 @@ export const userGetByIdHandler: RouteHandler<
     return c.json(
       {
         status: 404,
-        message: `No user found with ID: ${id}`,
+        message: `No author found with ID: ${id}`,
         details: [],
       },
       404,

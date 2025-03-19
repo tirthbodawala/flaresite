@@ -339,10 +339,15 @@ export class BaseService<
     }
 
     // Apply provided filter conditions
+    // Apply provided filter conditions
     if (filter) {
       Object.entries(filter).forEach(([key, value]) => {
         if (key in columns && value !== undefined) {
-          conditions.push(eq(columns[key], value));
+          if (Array.isArray(value)) {
+            conditions.push(inArray(columns[key], value)); // Handle array values
+          } else {
+            conditions.push(eq(columns[key], value)); // Handle single values
+          }
         }
       });
     }
@@ -378,10 +383,15 @@ export class BaseService<
     }
 
     // Apply provided filter conditions
+    // Apply provided filter conditions
     if (filter) {
       Object.entries(filter).forEach(([key, value]) => {
         if (key in columns && value !== undefined) {
-          conditions.push(eq(columns[key], value));
+          if (Array.isArray(value)) {
+            conditions.push(inArray(columns[key], value)); // Handle array values
+          } else {
+            conditions.push(eq(columns[key], value)); // Handle single values
+          }
         }
       });
     }

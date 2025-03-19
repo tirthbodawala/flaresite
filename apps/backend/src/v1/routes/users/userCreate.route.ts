@@ -8,6 +8,7 @@ import {
 } from "@v1/schemas/error.schema";
 import type { AppContext } from "@/types";
 import { HeadersSchema } from "@/v1/schemas/headers.scheme";
+import { ApiError } from "@/classes/ApiError.class";
 
 export const userCreateRoute = createRoute({
   method: "post",
@@ -63,6 +64,10 @@ export const userCreateHandler: RouteHandler<
   typeof userCreateRoute,
   AppContext
 > = async (c) => {
+  const canCreateUsers = c.var.can("create_users");
+  if (!canCreateUsers) {
+    throw new ApiError(403, "You do not have permission to create users");
+  }
   const db = initDBInstance(c.env, c.env);
   // Validate request body
   const validated = c.req.valid("json");

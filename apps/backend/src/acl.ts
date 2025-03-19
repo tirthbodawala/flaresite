@@ -13,10 +13,12 @@ export const PERMISSION_VALUES = [
   "register",
 
   // Users
-  "list_users",
+  "view_users",
+  "create_users",
   "edit_users",
   "delete_users",
   "promote_users",
+  "view_authors",
 
   // Content
   "create_content",
@@ -77,10 +79,12 @@ export type PermissionsMap = {
 export const PERMISSIONS: PermissionsMap = {
   admin: [
     // Users
-    "list_users",
+    "view_users",
+    "create_users",
     "edit_users",
     "delete_users",
     "promote_users",
+    "view_authors",
 
     // Content
     "create_content",
@@ -125,6 +129,9 @@ export const PERMISSIONS: PermissionsMap = {
     "manage_options",
   ],
   editor: [
+    // User
+    "view_authors",
+
     // Content
     "create_content",
     "view_content",
@@ -158,6 +165,8 @@ export const PERMISSIONS: PermissionsMap = {
     "assign_categories",
   ],
   author: [
+    "view_authors",
+
     // Content
     "create_content",
     "view_content",
@@ -170,8 +179,11 @@ export const PERMISSIONS: PermissionsMap = {
     "delete_own_media",
     "assign_categories",
   ],
-  subscriber: ["read_private_content"],
+  subscriber: ["view_authors", "read_private_content"],
   guest: [
+    // Users
+    "view_authors",
+
     // Auth
     "login",
     "register",

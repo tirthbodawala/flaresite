@@ -1,4 +1,5 @@
-import contentRoutes from './content';
-import usersRoutes from './users';
+import contentRoutes from "./content";
+import usersRoutes from "./users";
+import authorsRoutes from "./authors";
 
-export default [...usersRoutes, ...contentRoutes];
+export default [...usersRoutes, ...contentRoutes, ...authorsRoutes];

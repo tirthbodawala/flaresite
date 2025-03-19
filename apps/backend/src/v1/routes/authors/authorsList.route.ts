@@ -12,10 +12,10 @@ import { HeadersSchema } from "@/v1/schemas/headers.scheme";
 import { ApiError } from "@/classes/ApiError.class";
 
 // Define the route using createRoute
-export const userListRoute = createRoute({
+export const authorsListRoute = createRoute({
   method: "get",
-  path: "/api/v1/user",
-  summary: "List User with pagination, sorting, and filtering",
+  path: "/api/v1/authors",
+  summary: "List authors with pagination, sorting, and filtering",
   tags: ["User"],
   security: [
     {
@@ -28,7 +28,7 @@ export const userListRoute = createRoute({
   },
   responses: {
     200: {
-      description: "Successfully fetched user list",
+      description: "Successfully fetched authors list",
       content: {
         "application/json": { schema: z.array(UserPublicSchema) },
       },
@@ -53,11 +53,11 @@ export const userListRoute = createRoute({
 });
 
 // Handler Function
-export const userListHandler: RouteHandler<
-  typeof userListRoute,
+export const authorsListHandler: RouteHandler<
+  typeof authorsListRoute,
   AppContext
 > = async (c) => {
-  const canViewUsers = c.var.can("view_users");
+  const canViewUsers = c.var.can("view_authors");
   if (!canViewUsers) {
     throw new ApiError(403, "You do not have permission to view users");
   }
@@ -77,8 +77,8 @@ export const userListHandler: RouteHandler<
   const totalItems = await db.users.getCount(parsedFilter);
 
   return c.json(userList, 200, {
-    // Set User-Range header (important for React-Admin)
-    "Content-Range": `content ${parsedRange[0]}-${parsedRange[1]}/${totalItems}`,
-    "Access-Control-Expose-Headers": "User-Range", // Ensures React-Admin can read it
+    // Set Content-Range header (important for React-Admin)
+    "Content-Range": `authors ${parsedRange[0]}-${parsedRange[1]}/${totalItems}`,
+    "Access-Control-Expose-Headers": "Content-Range", // Ensures React-Admin can read it
   });
 };

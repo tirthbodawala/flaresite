@@ -81,7 +81,7 @@ export const contentListHandler: RouteHandler<
         }
       : {}),
   });
-  const totalItems = contentList.length;
+  const totalItems = await db.content.getCount(parsedFilter);
 
   return c.json(contentList, 200, {
     // Set Content-Range header (important for React-Admin)

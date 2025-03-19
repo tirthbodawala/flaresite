@@ -5,7 +5,7 @@ import {
   GenericSelectType,
 } from './base.service';
 import { Ctx } from '../types';
-import { eq, or } from 'drizzle-orm';
+import { eq, getTableColumns, or, and, isNull } from 'drizzle-orm';
 import { ServiceError } from '../classes/service_error.class';
 import { hashPassword, verifyPassword } from '@utils/auth.util';
 
@@ -156,17 +156,24 @@ export class UserService extends BaseService<UserInsert, UserSelect> {
   private async getByUsernameOrEmail(
     value: string,
   ): Promise<UserSelect | null> {
-    const records = await super.getList(
-      undefined,
-      undefined,
-      {
-        // This is a simplified approach. For actual logic, you'd do an OR
-        // across username/email. Drizzle doesn't do easy OR out of the box
-        // so you might do a raw query or something else.
-        username: value,
-      },
-      false,
-    );
+    const columns = getTableColumns(this.schema);
+    const orConditions = [];
+    const andConditions = [];
+    if ('email' in columns) {
+      orConditions.push(eq(columns.email, value));
+    }
+    if ('username' in columns) {
+      orConditions.push(eq(columns.username, value));
+    }
+    if ('deletedAt' in columns) {
+      andConditions.push(isNull(columns.deletedAt));
+    }
+
+    const records = (await this.ctx.db
+      .select()
+      .from(this.schema)
+      .where(and(or(...orConditions), ...andConditions))) as UserSelect[];
+
     return records[0] ? this.#omitPasswordHash(records[0]) : null;
   }
 

@@ -6,6 +6,7 @@ import {
   getTableName,
   getTableColumns,
   inArray,
+  count,
 } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { generateShortId } from '@utils/short_id.util';
@@ -36,6 +37,10 @@ export interface GenericSelectType {
   deletedAt?: string | null;
   [key: string]: any;
 }
+
+type CountResult = {
+  count: number;
+}[];
 
 export function getTableQuery(ctx: Ctx, tableName: string) {
   const queryInterface = (
@@ -353,6 +358,42 @@ export class BaseService<
     });
 
     return records as TSelect[];
+  }
+
+  async getCount(
+    filter?: Partial<Record<keyof TSelect, any>>,
+    includeDeleted = false,
+  ): Promise<number> {
+    const columns = getTableColumns(this.schema);
+    const conditions = [];
+
+    // Soft delete condition, if applicable and not including deleted
+    if ('deletedAt' in columns && !includeDeleted) {
+      conditions.push(isNull(columns.deletedAt));
+    }
+
+    let countFn = count();
+    if ('id' in columns) {
+      countFn = count(columns.id);
+    }
+
+    // Apply provided filter conditions
+    if (filter) {
+      Object.entries(filter).forEach(([key, value]) => {
+        if (key in columns && value !== undefined) {
+          conditions.push(eq(columns[key], value));
+        }
+      });
+    }
+
+    const query = this.ctx.db.select({ count: countFn }).from(this.schema);
+    let rowCount = 0;
+    if (conditions.length) {
+      rowCount = (await query.where(and(...conditions)))?.[0]?.count;
+    } else {
+      rowCount = (await query)?.[0]?.count;
+    }
+    return rowCount;
   }
 
   async bulkUpdate(

@@ -69,7 +69,7 @@ export const userListHandler: RouteHandler<
     parsedSort,
     parsedFilter,
   );
-  const totalItems = userList.length;
+  const totalItems = await db.users.getCount(parsedFilter);
 
   return c.json(userList, 200, {
     // Set User-Range header (important for React-Admin)

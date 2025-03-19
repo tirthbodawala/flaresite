@@ -24,7 +24,7 @@ export const contentCreateRoute = createRoute({
   method: "post",
   path: "/api/v1/content",
   tags: ["Content"],
-  description: "Create a new content entry",
+  summary: "Create a new content entry",
   security: [
     {
       Bearer: [],

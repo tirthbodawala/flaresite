@@ -35,7 +35,7 @@
     "tsc-alias": "^1.8.11",
     "turbo": "^2.4.4",
     "typescript": "^5.8.2",
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.1.0"
   },
   "engines": {
     "node": ">=18.17.1"

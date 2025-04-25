@@ -7,11 +7,12 @@ CREATE TABLE `content_meta` (
 );
 --> statement-breakpoint
 CREATE INDEX `idx_content_meta_key` ON `content_meta` (`content_id`,`meta_key`);--> statement-breakpoint
-CREATE TABLE `content_taxonomy` (
+CREATE TABLE `content_taxonomies` (
+	`id` text PRIMARY KEY NOT NULL,
 	`content_id` text,
 	`taxonomy_id` text,
 	FOREIGN KEY (`content_id`) REFERENCES `content`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`taxonomy_id`) REFERENCES `taxonomy`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`taxonomy_id`) REFERENCES `taxonomies`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `content` (
@@ -128,7 +129,7 @@ CREATE TABLE `site_settings` (
 	FOREIGN KEY (`organization_id`) REFERENCES `organizations`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
-CREATE TABLE `taxonomy` (
+CREATE TABLE `taxonomies` (
 	`id` text PRIMARY KEY NOT NULL,
 	`type` text NOT NULL,
 	`name` text NOT NULL,
@@ -136,8 +137,8 @@ CREATE TABLE `taxonomy` (
 	`parent_id` text
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `taxonomy_slug_unique` ON `taxonomy` (`slug`);--> statement-breakpoint
-CREATE INDEX `idx_taxonomy_slug` ON `taxonomy` (`slug`);--> statement-breakpoint
+CREATE UNIQUE INDEX `taxonomies_slug_unique` ON `taxonomies` (`slug`);--> statement-breakpoint
+CREATE INDEX `idx_taxonomies_slug` ON `taxonomies` (`slug`);--> statement-breakpoint
 CREATE TABLE `users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`username` text NOT NULL,

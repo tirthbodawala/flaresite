@@ -67,7 +67,7 @@ export const authorsGetByIdHandler: RouteHandler<
   typeof authorsGetByIdRoute,
   AppContext
 > = async (c) => {
-  if (!c.var.can("view_authors")) {
+  if (!c.var.can("authors", "show")) {
     throw new ApiError(403, "You do not have permission to view user");
   }
   const db = initDBInstance(c.env, c.env);

@@ -1,24 +1,22 @@
 import {
-  DateInput,
+  DateTimeInput,
   Edit,
   ReferenceInput,
   SelectInput,
   SimpleForm,
   TextInput,
   required,
-  useFieldValue,
 } from "react-admin";
 import { useFormContext } from "react-hook-form";
 import { MdxEditorInput } from "../components/MdxEditorInput";
 
 const PublishedAtField = () => {
   const { watch } = useFormContext();
-  const status = watch("status"); // Watch "status" field
+  const status = watch("status");
 
-  if (status !== "published") return null; // Show only if "published"
+  if (status !== "published") return null;
 
-  /* Date Fields (Nullable) */
-  return <DateInput source="publishedAt" />;
+  return <DateTimeInput source="publishedAt" />;
 };
 
 export const ContentEdit = () => (

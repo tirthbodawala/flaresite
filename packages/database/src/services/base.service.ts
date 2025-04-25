@@ -38,10 +38,6 @@ export interface GenericSelectType {
   [key: string]: any;
 }
 
-type CountResult = {
-  count: number;
-}[];
-
 export function getTableQuery(ctx: Ctx, tableName: string) {
   const queryInterface = (
     ctx.db.query as Record<
@@ -339,7 +335,6 @@ export class BaseService<
     }
 
     // Apply provided filter conditions
-    // Apply provided filter conditions
     if (filter) {
       Object.entries(filter).forEach(([key, value]) => {
         if (key in columns && value !== undefined) {
@@ -354,10 +349,11 @@ export class BaseService<
 
     const records = await tableQuery.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
-      orderBy: sort
-        ? (fields: any) =>
-            sort[1] === 'ASC' ? fields[sort[0]] : desc(fields[sort[0]])
-        : undefined,
+      orderBy:
+        sort && Object.keys(sort).length > 0
+          ? (fields: any) =>
+              sort[1] === 'ASC' ? fields[sort[0]] : desc(fields[sort[0]])
+          : undefined,
       limit: range ? range[1] - range[0] + 1 : undefined,
       offset: range ? range[0] : undefined,
     });
@@ -382,7 +378,6 @@ export class BaseService<
       countFn = count(columns.id);
     }
 
-    // Apply provided filter conditions
     // Apply provided filter conditions
     if (filter) {
       Object.entries(filter).forEach(([key, value]) => {

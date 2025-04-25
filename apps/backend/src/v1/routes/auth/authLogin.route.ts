@@ -1,29 +1,29 @@
 import { createRoute, type RouteHandler } from "@hono/zod-openapi";
 import { initDBInstance } from "@flarekit/database";
 import {
-  UserLoginSchema,
-  UserLoginResponseSchema,
-} from "@v1/schemas/user.schema";
+  AuthLoginSchema,
+  AuthLoginResponseSchema,
+} from "@v1/schemas/auth.schema";
 import {
   BadRequestErrorSchema,
   ServerErrorSchema,
   UnauthorizedErrorSchema,
 } from "@v1/schemas/error.schema";
 import { SignJWT } from "jose";
-import { ApiError } from "../../../classes/ApiError.class";
+import { ApiError } from "@/classes/ApiError.class";
 import type { AppContext } from "@/types";
 
 // 1) Define the route using createRoute
-export const userLoginRoute = createRoute({
+export const authLoginRoute = createRoute({
   method: "post",
   path: "/api/v1/login",
   summary: "Authenticate a user (Login)",
-  tags: ["User"],
+  tags: ["Auth"],
   request: {
     body: {
       content: {
         "application/json": {
-          schema: UserLoginSchema,
+          schema: AuthLoginSchema,
         },
       },
     },
@@ -33,7 +33,7 @@ export const userLoginRoute = createRoute({
       description: "Successfully authenticated the user",
       content: {
         "application/json": {
-          schema: UserLoginResponseSchema,
+          schema: AuthLoginResponseSchema,
         },
       },
     },
@@ -57,8 +57,8 @@ export const userLoginRoute = createRoute({
 });
 
 // 3) The Handler
-export const userLoginHandler: RouteHandler<
-  typeof userLoginRoute,
+export const authLoginHandler: RouteHandler<
+  typeof authLoginRoute,
   AppContext
 > = async (c) => {
   // a) Get DB or Service instance

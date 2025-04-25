@@ -1,7 +1,14 @@
 import { jwtVerify } from "jose"; // or any JWT library
 import { type MiddlewareHandler } from "hono";
 import type { AppContext, PayloadUser } from "@/types";
-import { hasPermission, Permission, Role, ROLES } from "@/acl";
+import {
+  Action,
+  hasPermission,
+  Permission,
+  Resource,
+  Role,
+  ROLES,
+} from "@/v1/acl";
 
 export const authMiddleware: MiddlewareHandler<AppContext> = async (
   c,
@@ -32,8 +39,8 @@ export const authMiddleware: MiddlewareHandler<AppContext> = async (
         email,
       } as PayloadUser);
     }
-    c.set("can", (permission: Permission) =>
-      hasPermission(userRole, permission),
+    c.set("can", (resource: Resource, action: Action) =>
+      hasPermission(userRole, { resource, action }),
     );
 
     await next(); // proceed to the route

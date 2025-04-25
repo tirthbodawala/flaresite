@@ -12,7 +12,7 @@ import { ApiError } from "@/classes/ApiError.class";
 
 export const userCreateRoute = createRoute({
   method: "post",
-  path: "/api/v1/user",
+  path: "/api/v1/users",
   summary: "Create a new user",
   tags: ["User"],
   security: [
@@ -64,7 +64,7 @@ export const userCreateHandler: RouteHandler<
   typeof userCreateRoute,
   AppContext
 > = async (c) => {
-  const canCreateUsers = c.var.can("create_users");
+  const canCreateUsers = c.var.can("users", "create");
   if (!canCreateUsers) {
     throw new ApiError(403, "You do not have permission to create users");
   }

@@ -59,8 +59,8 @@ export const contentListHandler: RouteHandler<
   typeof contentListRoute,
   AppContext
 > = async (c) => {
-  const canViewContent = c.var.can("view_content");
-  const canViewOthersContent = c.var.can("view_others_content");
+  const canViewContent = c.var.can("content", "list");
+  const canViewOthersContent = c.var.can("content", "listOthers");
   const userId = c.var.user?.id;
   if (!userId || (!canViewContent && !canViewOthersContent)) {
     throw new ApiError(403, "Forbidden");

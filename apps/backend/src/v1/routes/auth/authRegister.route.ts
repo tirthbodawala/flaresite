@@ -1,9 +1,9 @@
 import { createRoute, type RouteHandler } from "@hono/zod-openapi";
 import { initDBInstance } from "@flarekit/database";
 import {
-  UserRegisterSchema,
-  UserLoginResponseSchema,
-} from "@v1/schemas/user.schema";
+  AuthRegisterSchema,
+  AuthLoginResponseSchema,
+} from "@v1/schemas/auth.schema";
 import {
   BadRequestErrorSchema,
   ServerErrorSchema,
@@ -12,16 +12,16 @@ import { SignJWT } from "jose";
 import type { AppContext } from "@/types";
 
 // 1) Define the route using createRoute
-export const userRegisterRoute = createRoute({
+export const authRegisterRoute = createRoute({
   method: "post",
   path: "/api/v1/register",
   summary: "Register a new user (self-signup)",
-  tags: ["User"],
+  tags: ["Auth"],
   request: {
     body: {
       content: {
         "application/json": {
-          schema: UserRegisterSchema,
+          schema: AuthRegisterSchema,
         },
       },
     },
@@ -31,7 +31,7 @@ export const userRegisterRoute = createRoute({
       description: "Successfully registered the user",
       content: {
         "application/json": {
-          schema: UserLoginResponseSchema,
+          schema: AuthLoginResponseSchema,
         },
       },
     },
@@ -47,8 +47,8 @@ export const userRegisterRoute = createRoute({
 });
 
 // 3) The Handler
-export const userRegisterHandler: RouteHandler<
-  typeof userRegisterRoute,
+export const authRegisterHandler: RouteHandler<
+  typeof authRegisterRoute,
   AppContext
 > = async (c) => {
   // a) Get DB or Service instance

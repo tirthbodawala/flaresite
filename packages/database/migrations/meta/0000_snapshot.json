@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6166db65-b8da-42da-af6b-2df913b38cb5",
+  "id": "5f65c812-0c11-4d57-b82e-b8755739eb96",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "content_meta": {
@@ -58,9 +58,16 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "content_taxonomy": {
-      "name": "content_taxonomy",
+    "content_taxonomies": {
+      "name": "content_taxonomies",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
         "content_id": {
           "name": "content_id",
           "type": "text",
@@ -78,19 +85,19 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "content_taxonomy_content_id_content_id_fk": {
-          "name": "content_taxonomy_content_id_content_id_fk",
-          "tableFrom": "content_taxonomy",
+        "content_taxonomies_content_id_content_id_fk": {
+          "name": "content_taxonomies_content_id_content_id_fk",
+          "tableFrom": "content_taxonomies",
           "tableTo": "content",
           "columnsFrom": ["content_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "content_taxonomy_taxonomy_id_taxonomy_id_fk": {
-          "name": "content_taxonomy_taxonomy_id_taxonomy_id_fk",
-          "tableFrom": "content_taxonomy",
-          "tableTo": "taxonomy",
+        "content_taxonomies_taxonomy_id_taxonomies_id_fk": {
+          "name": "content_taxonomies_taxonomy_id_taxonomies_id_fk",
+          "tableFrom": "content_taxonomies",
+          "tableTo": "taxonomies",
           "columnsFrom": ["taxonomy_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
@@ -822,8 +829,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "taxonomy": {
-      "name": "taxonomy",
+    "taxonomies": {
+      "name": "taxonomies",
       "columns": {
         "id": {
           "name": "id",
@@ -862,13 +869,13 @@
         }
       },
       "indexes": {
-        "taxonomy_slug_unique": {
-          "name": "taxonomy_slug_unique",
+        "taxonomies_slug_unique": {
+          "name": "taxonomies_slug_unique",
           "columns": ["slug"],
           "isUnique": true
         },
-        "idx_taxonomy_slug": {
-          "name": "idx_taxonomy_slug",
+        "idx_taxonomies_slug": {
+          "name": "idx_taxonomies_slug",
           "columns": ["slug"],
           "isUnique": false
         }

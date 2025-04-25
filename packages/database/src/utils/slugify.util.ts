@@ -134,11 +134,13 @@ export function slugify(input: string, options: SlugifyOptions = {}): string {
   const {
     replacement = '-',
     remove = /[^\w\s$*_+~.()'"!\-:@]+/g,
-    lower = false,
+    lower = true,
     strict = false,
     locale = '',
     trim = true,
   } = options;
+
+  console.log('lower::', lower);
 
   const localeMap = locales[locale] || {};
 

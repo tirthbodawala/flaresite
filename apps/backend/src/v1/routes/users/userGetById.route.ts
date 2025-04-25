@@ -14,7 +14,7 @@ import { ApiError } from "@/classes/ApiError.class";
 // Define the route using createRoute
 export const userGetByIdRoute = createRoute({
   method: "get",
-  path: "/api/v1/user/{id}",
+  path: "/api/v1/users/{id}",
   summary: "Get a single user resource by ID",
   tags: ["User"],
   security: [
@@ -67,7 +67,7 @@ export const userGetByIdHandler: RouteHandler<
   typeof userGetByIdRoute,
   AppContext
 > = async (c) => {
-  if (!c.var.can("view_users")) {
+  if (!c.var.can("users", "show")) {
     throw new ApiError(403, "You do not have permission to view user");
   }
   const db = initDBInstance(c.env, c.env);

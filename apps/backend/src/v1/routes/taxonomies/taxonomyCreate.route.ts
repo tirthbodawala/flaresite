@@ -1,5 +1,5 @@
 import { z, createRoute, RouteHandler } from "@hono/zod-openapi";
-import { ContentSchema } from "@v1/schemas/content.schema";
+import { TaxonomySchema } from "@v1/schemas/taxonomy.schema";
 import {
   BadRequestErrorSchema,
   ForbiddenErrorSchema,
@@ -12,19 +12,19 @@ import type { AppContext } from "@/types";
 import { ApiError } from "@/classes/ApiError.class";
 
 // Define request schema
-const createContentSchema = z.object({
-  title: z.string().min(3).max(255),
-  content: z.string().min(10),
-  tags: z.array(z.string()).optional(),
-  category: z.string().optional(),
+const createTaxonomySchema = z.object({
+  name: z.string().min(2).max(100),
+  type: z.enum(["category", "tag"]),
+  description: z.string().optional(),
+  parentId: z.string().optional(),
 });
 
 // Create route
-export const contentCreateRoute = createRoute({
+export const taxonomyCreateRoute = createRoute({
   method: "post",
-  path: "/api/v1/content",
-  tags: ["Content"],
-  summary: "Create a new content entry",
+  path: "/api/v1/taxonomies",
+  tags: ["Taxonomies"],
+  summary: "Create a new taxonomy entry",
   security: [
     {
       Bearer: [],
@@ -35,17 +35,17 @@ export const contentCreateRoute = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: createContentSchema,
+          schema: createTaxonomySchema,
         },
       },
     },
   },
   responses: {
     201: {
-      description: "Content created successfully",
+      description: "Taxonomy created successfully",
       content: {
         "application/json": {
-          schema: ContentSchema,
+          schema: TaxonomySchema,
         },
       },
     },
@@ -76,13 +76,13 @@ export const contentCreateRoute = createRoute({
   },
 });
 
-export const contentCreateHandler: RouteHandler<
-  typeof contentCreateRoute,
+export const taxonomyCreateHandler: RouteHandler<
+  typeof taxonomyCreateRoute,
   AppContext
 > = async (c) => {
-  const canCreateContent = c.var.can("content", "create");
+  const canCreateTaxonomy = c.var.can("taxonomies", "create");
   const userId = c.var.user?.id;
-  if (!userId || !canCreateContent) {
+  if (!userId || !canCreateTaxonomy) {
     throw new ApiError(403, "Forbidden");
   }
 
@@ -91,15 +91,14 @@ export const contentCreateHandler: RouteHandler<
   const validated = c.req.valid("json");
 
   // Insert into database
-  const content = {
-    title: validated.title,
-    slug: slugify(validated.title),
-    content: validated.content,
-    authorId: userId,
-    tags: validated.tags || [],
-    category: validated.category || null,
+  const taxonomy = {
+    name: validated.name,
+    slug: slugify(validated.name),
+    type: validated.type,
+    description: validated.description || null,
+    parentId: validated.parentId || null,
   };
 
-  const data = await db.content.create(content);
+  const data = await db.taxonomies.create(taxonomy);
   return c.json(data, 201);
 };

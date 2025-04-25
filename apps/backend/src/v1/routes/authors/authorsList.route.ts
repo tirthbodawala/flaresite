@@ -57,7 +57,7 @@ export const authorsListHandler: RouteHandler<
   typeof authorsListRoute,
   AppContext
 > = async (c) => {
-  const canViewUsers = c.var.can("view_authors");
+  const canViewUsers = c.var.can("authors", "list");
   if (!canViewUsers) {
     throw new ApiError(403, "You do not have permission to view users");
   }

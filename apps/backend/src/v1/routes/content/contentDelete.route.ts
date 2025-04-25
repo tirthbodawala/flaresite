@@ -1,5 +1,6 @@
-import { createRoute, z, type RouteHandler } from "@hono/zod-openapi";
-import { initDBInstance } from "@flarekit/database";
+/** Create a route to delete a content item */
+
+import { z, createRoute, RouteHandler } from "@hono/zod-openapi";
 import { ContentSchema } from "@v1/schemas/content.schema";
 import {
   BadRequestErrorSchema,
@@ -7,15 +8,21 @@ import {
   NotFoundErrorSchema,
   ServerErrorSchema,
 } from "@v1/schemas/error.schema";
+import { initDBInstance } from "@flarekit/database";
+import { HeadersSchema } from "@v1/schemas/headers.scheme";
 import type { AppContext } from "@/types";
-import { HeadersSchema } from "@/v1/schemas/headers.scheme";
 import { ApiError } from "@/classes/ApiError.class";
 
+// Define request schema
+const deleteContentSchema = z.object({
+  id: z.string().min(1),
+});
+
 // Define the route using createRoute
-export const contentGetByIdRoute = createRoute({
-  method: "get",
+export const contentDeleteByIdRoute = createRoute({
+  method: "delete",
   path: "/api/v1/content/{id}",
-  summary: "Get a single content resource by ID",
+  summary: "Delete a single content resource by ID",
   tags: ["Content"],
   security: [
     {
@@ -33,7 +40,7 @@ export const contentGetByIdRoute = createRoute({
   },
   responses: {
     200: {
-      description: "Successfully retrieved content resource",
+      description: "Successfully deleted content resource",
       content: {
         "application/json": {
           schema: ContentSchema,
@@ -67,36 +74,30 @@ export const contentGetByIdRoute = createRoute({
   },
 });
 
-export const contentGetByIdHandler: RouteHandler<
-  typeof contentGetByIdRoute,
+export const contentDeleteByIdHandler: RouteHandler<
+  typeof contentDeleteByIdRoute,
   AppContext
 > = async (c) => {
-  const viewContent = c.var.can("content", "show");
-  const viewOthersContent = c.var.can("content", "showOthers");
+  const deleteContent = c.var.can("content", "delete");
+  const deleteOthersContent = c.var.can("content", "deleteOthers");
   const user = c.var.user;
-  if (!viewContent && !viewOthersContent) {
+  if (!deleteContent && !deleteOthersContent) {
     throw new ApiError(403, "Forbidden");
   }
   const db = initDBInstance(c.env, c.env);
   const { id } = c.req.valid("param");
 
-  // Fetch the content resource by ID
-  const content = await db.content.getById(id);
+  const contentData = await db.content.getById(id);
 
-  if (!viewOthersContent && content?.authorId !== user?.id) {
+  if (!contentData) {
+    throw new ApiError(404, "Content not found");
+  }
+
+  if (contentData.authorId !== user?.id && !deleteOthersContent) {
     throw new ApiError(403, "Forbidden");
   }
 
-  if (!content) {
-    return c.json(
-      {
-        status: 404,
-        message: `No content found with ID: ${id}`,
-        details: [],
-      },
-      404,
-    );
-  }
+  const content = await db.content.delete(id);
 
   return c.json(content, 200);
 };

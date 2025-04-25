@@ -16,12 +16,7 @@ import {
   toolbarPlugin,
 } from "@mdxeditor/editor";
 import "@mdxeditor/editor/style.css";
-import {
-  FormControl,
-  FormHelperText,
-  FormLabel,
-  InputLabel,
-} from "@mui/material";
+import { FormControl, FormHelperText, FormLabel } from "@mui/material";
 import { MdxEditorToolbar } from "./MdxEditorToolbar";
 
 export const MdxEditorInput = ({ source, label }: InputProps) => {

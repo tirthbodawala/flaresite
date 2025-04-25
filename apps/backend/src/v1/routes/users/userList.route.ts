@@ -14,7 +14,7 @@ import { ApiError } from "@/classes/ApiError.class";
 // Define the route using createRoute
 export const userListRoute = createRoute({
   method: "get",
-  path: "/api/v1/user",
+  path: "/api/v1/users",
   summary: "List User with pagination, sorting, and filtering",
   tags: ["User"],
   security: [
@@ -57,7 +57,7 @@ export const userListHandler: RouteHandler<
   typeof userListRoute,
   AppContext
 > = async (c) => {
-  const canViewUsers = c.var.can("view_users");
+  const canViewUsers = c.var.can("users", "list");
   if (!canViewUsers) {
     throw new ApiError(403, "You do not have permission to view users");
   }
@@ -78,7 +78,7 @@ export const userListHandler: RouteHandler<
 
   return c.json(userList, 200, {
     // Set User-Range header (important for React-Admin)
-    "Content-Range": `content ${parsedRange[0]}-${parsedRange[1]}/${totalItems}`,
-    "Access-Control-Expose-Headers": "User-Range", // Ensures React-Admin can read it
+    "Content-Range": `users ${parsedRange[0]}-${parsedRange[1]}/${totalItems}`,
+    "Access-Control-Expose-Headers": "Content-Range", // Ensures React-Admin can read it
   });
 };

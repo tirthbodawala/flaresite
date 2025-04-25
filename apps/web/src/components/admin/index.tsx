@@ -1,43 +1,27 @@
 import {
-  fetchUtils,
   Admin,
   Resource,
   radiantLightTheme,
   radiantDarkTheme,
   ShowGuesser,
   EditGuesser,
+  ListGuesser,
 } from "react-admin";
-import simpleRestProvider from "ra-data-simple-rest";
 import { authProvider } from "./authProvider";
 import type { FC } from "react";
 import { ContentList } from "./content/ContentList";
 import { ContentEdit } from "./content/ContentEdit";
+import { ContentShow } from "./content/ContentShow";
+import { ContentCreate } from "./content/ContentCreate";
+import { getDataProvider } from "./dataProvider";
 
-const httpClient = (url: string, options: RequestInit = {}) => {
-  if (!options.headers) {
-    options.headers = new Headers({ Accept: "application/json" });
-  } else {
-    options.headers = new Headers(options.headers);
-  }
-  try {
-    const authToken = localStorage.getItem("authToken");
-    if (authToken) {
-      options.headers.set("Authorization", `Bearer ${authToken}`);
-    }
-  } catch (error) {
-    console.error(error);
-  }
-
-  return fetchUtils.fetchJson(url, options);
-};
+const tagFilters = { type: "tag" };
+const categoryFilters = { type: "category" };
 
 export const ReactAdmin: FC<{
   apiEndpoint: string;
 }> = ({ apiEndpoint }) => {
-  const restEndpoint = apiEndpoint.endsWith("/")
-    ? apiEndpoint.substring(0, apiEndpoint.length - 1)
-    : apiEndpoint;
-  const dataProvider = simpleRestProvider(restEndpoint, httpClient);
+  const dataProvider = getDataProvider(apiEndpoint);
   return (
     <Admin
       authProvider={authProvider(apiEndpoint)}
@@ -48,8 +32,29 @@ export const ReactAdmin: FC<{
       <Resource
         name="content"
         list={ContentList}
-        show={ShowGuesser}
+        show={ContentShow}
         edit={ContentEdit}
+        create={ContentCreate}
+      />
+      <Resource
+        name="users"
+        list={ListGuesser}
+        show={ShowGuesser}
+        edit={EditGuesser}
+        create={EditGuesser}
+      />
+      <Resource
+        name="tags"
+        list={ListGuesser}
+        show={ShowGuesser}
+        edit={EditGuesser}
+        create={EditGuesser}
+      />
+      <Resource
+        name="categories"
+        list={ListGuesser}
+        show={ShowGuesser}
+        edit={EditGuesser}
         create={EditGuesser}
       />
     </Admin>

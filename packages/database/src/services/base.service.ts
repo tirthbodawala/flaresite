@@ -158,18 +158,28 @@ export class BaseService<
       finalData.shortId = generateShortId() as TInsert['shortId'];
     }
 
-    // Perform insertion explicitly typed
-    const insertedRows = await this.ctx.db
-      .insert(this.schema)
-      .values(finalData as TInsert)
-      .returning();
+    try {
+      // Perform insertion explicitly typed
+      const insertedRows = await this.ctx.db
+        .insert(this.schema)
+        .values(finalData as TInsert)
+        .returning();
 
-    if (!insertedRows || insertedRows.length === 0) {
-      throw new ServiceError(500, 'Insertion failed: No rows returned.');
+      if (!insertedRows || insertedRows.length === 0) {
+        throw new ServiceError(500, 'Insertion failed: No rows returned.');
+      }
+
+      // Type assertion to explicitly guarantee TSelect compatibility
+      return insertedRows[0] as TSelect;
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('FOREIGN KEY constraint failed')) {
+          throw new ServiceError(400, 'Referenced record does not exist');
+        }
+        throw new ServiceError(500, `Database error: ${error.message}`);
+      }
+      throw error;
     }
-
-    // Type assertion to explicitly guarantee TSelect compatibility
-    return insertedRows[0] as TSelect;
   }
 
   async update(id: string, data: Partial<TInsert>): Promise<TSelect> {
@@ -187,20 +197,30 @@ export class BaseService<
       );
     }
 
-    // Perform update query explicitly typed
-    const updatedRows = await this.ctx.db
-      .update(this.schema)
-      .set(finalData as TInsert)
-      .where(eq(columns.id, id))
-      .returning();
+    try {
+      // Perform update query explicitly typed
+      const updatedRows = await this.ctx.db
+        .update(this.schema)
+        .set(finalData as TInsert)
+        .where(eq(columns.id, id))
+        .returning();
 
-    // Check if update affected any row
-    if (!updatedRows || updatedRows.length === 0) {
-      throw new ServiceError(404, `No record found with ID: ${id}`);
+      // Check if update affected any row
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new ServiceError(404, `No record found with ID: ${id}`);
+      }
+
+      // Explicitly ensure returned data matches TSelect
+      return updatedRows[0] as TSelect;
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('FOREIGN KEY constraint failed')) {
+          throw new ServiceError(400, 'Referenced record does not exist');
+        }
+        throw new ServiceError(500, `Database error: ${error.message}`);
+      }
+      throw error;
     }
-
-    // Explicitly ensure returned data matches TSelect
-    return updatedRows[0] as TSelect;
   }
 
   async delete(id: string, permanent = false): Promise<TSelect> {
@@ -214,40 +234,53 @@ export class BaseService<
       );
     }
 
-    if (permanent) {
-      // Perform permanent deletion
-      const deletedRows = await this.ctx.db
-        .delete(this.schema)
-        .where(eq(columns.id, id))
-        .returning();
+    // Check if record exists first
+    const existing = await this.getById(id);
+    if (!existing) {
+      throw new ServiceError(404, `No record found with ID: ${id}`);
+    }
 
-      if (!deletedRows || deletedRows.length === 0) {
-        throw new ServiceError(404, `No record found with ID: ${id}`);
+    try {
+      if (permanent) {
+        // Perform permanent deletion
+        const deletedRows = await this.ctx.db
+          .delete(this.schema)
+          .where(eq(columns.id, id))
+          .returning();
+
+        if (!deletedRows || deletedRows.length === 0) {
+          throw new ServiceError(404, `No record found with ID: ${id}`);
+        }
+
+        return deletedRows[0] as TSelect;
+      } else {
+        // Soft deletion: ensure 'deletedAt' field exists
+        if (!('deletedAt' in columns)) {
+          throw new ServiceError(
+            400,
+            "Schema does not have a 'deletedAt' field, cannot perform soft delete.",
+          );
+        }
+
+        const now = toSQLiteUTCString(new Date());
+
+        const updatedRows = await this.ctx.db
+          .update(this.schema)
+          .set({ deletedAt: now } as Partial<TInsert>)
+          .where(eq(columns.id, id))
+          .returning();
+
+        if (!updatedRows || updatedRows.length === 0) {
+          throw new ServiceError(404, `No record found with ID: ${id}`);
+        }
+
+        return updatedRows[0] as TSelect;
       }
-
-      return deletedRows[0] as TSelect;
-    } else {
-      // Soft deletion: ensure 'deletedAt' field exists
-      if (!('deletedAt' in columns)) {
-        throw new ServiceError(
-          400,
-          "Schema does not have a 'deletedAt' field, cannot perform soft delete.",
-        );
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new ServiceError(500, `Database error: ${error.message}`);
       }
-
-      const now = toSQLiteUTCString(new Date());
-
-      const updatedRows = await this.ctx.db
-        .update(this.schema)
-        .set({ deletedAt: now } as Partial<TInsert>)
-        .where(eq(columns.id, id))
-        .returning();
-
-      if (!updatedRows || updatedRows.length === 0) {
-        throw new ServiceError(404, `No record found with ID: ${id}`);
-      }
-
-      return updatedRows[0] as TSelect;
+      throw error;
     }
   }
 
@@ -261,27 +294,34 @@ export class BaseService<
       );
     }
 
-    const tableName = getTableName(this.schema);
-    const tableQuery = getTableQuery(this.ctx, tableName);
+    try {
+      const tableName = getTableName(this.schema);
+      const tableQuery = getTableQuery(this.ctx, tableName);
 
-    const record = await tableQuery.findFirst({
-      where: (fields: unknown) => {
-        const conditions = [eq(columns.id, id)];
+      const record = await tableQuery.findFirst({
+        where: (fields: unknown) => {
+          const conditions = [eq(columns.id, id)];
 
-        if (
-          !includeDeleted &&
-          typeof fields === 'object' &&
-          fields &&
-          'deletedAt' in fields
-        ) {
-          conditions.push(isNull(columns.deletedAt));
-        }
+          if (
+            !includeDeleted &&
+            typeof fields === 'object' &&
+            fields &&
+            'deletedAt' in fields
+          ) {
+            conditions.push(isNull(columns.deletedAt));
+          }
 
-        return and(...conditions);
-      },
-    });
+          return and(...conditions);
+        },
+      });
 
-    return (record as TSelect) ?? null;
+      return (record as TSelect) ?? null;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new ServiceError(500, `Database error: ${error.message}`);
+      }
+      throw error;
+    }
   }
 
   // Method to get record by shortId if the schema has the shortId column
@@ -327,38 +367,45 @@ export class BaseService<
     const tableName = getTableName(this.schema);
     const tableQuery = getTableQuery(this.ctx, tableName);
 
-    const conditions = [];
+    try {
+      const conditions = [];
 
-    // Soft delete condition, if applicable and not including deleted
-    if ('deletedAt' in columns && !includeDeleted) {
-      conditions.push(isNull(columns.deletedAt));
-    }
+      // Soft delete condition, if applicable and not including deleted
+      if ('deletedAt' in columns && !includeDeleted) {
+        conditions.push(isNull(columns.deletedAt));
+      }
 
-    // Apply provided filter conditions
-    if (filter) {
-      Object.entries(filter).forEach(([key, value]) => {
-        if (key in columns && value !== undefined) {
-          if (Array.isArray(value)) {
-            conditions.push(inArray(columns[key], value)); // Handle array values
-          } else {
-            conditions.push(eq(columns[key], value)); // Handle single values
+      // Apply provided filter conditions
+      if (filter) {
+        Object.entries(filter).forEach(([key, value]) => {
+          if (key in columns && value !== undefined) {
+            if (Array.isArray(value)) {
+              conditions.push(inArray(columns[key], value)); // Handle array values
+            } else {
+              conditions.push(eq(columns[key], value)); // Handle single values
+            }
           }
-        }
+        });
+      }
+
+      const records = await tableQuery.findMany({
+        where: conditions.length > 0 ? and(...conditions) : undefined,
+        orderBy:
+          sort && Object.keys(sort).length > 0
+            ? (fields: any) =>
+                sort[1] === 'ASC' ? fields[sort[0]] : desc(fields[sort[0]])
+            : undefined,
+        limit: range ? range[1] - range[0] + 1 : undefined,
+        offset: range ? range[0] : undefined,
       });
+
+      return records as TSelect[];
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new ServiceError(500, `Database error: ${error.message}`);
+      }
+      throw error;
     }
-
-    const records = await tableQuery.findMany({
-      where: conditions.length > 0 ? and(...conditions) : undefined,
-      orderBy:
-        sort && Object.keys(sort).length > 0
-          ? (fields: any) =>
-              sort[1] === 'ASC' ? fields[sort[0]] : desc(fields[sort[0]])
-          : undefined,
-      limit: range ? range[1] - range[0] + 1 : undefined,
-      offset: range ? range[0] : undefined,
-    });
-
-    return records as TSelect[];
   }
 
   async getCount(

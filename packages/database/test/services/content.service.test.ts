@@ -1,16 +1,17 @@
 import { createExecutionContext, env } from 'cloudflare:test';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 
-import { getInstance, initDBInstance } from '../../src'; // Adjust to your paths
+import { getInstance, initDBInstance, ServiceError } from '@/index'; // Adjust to your paths
 import { validate } from 'uuid';
 import { toSQLiteUTCString } from '@utils/date.util';
 
+// Initialize test context and database instance
 const ctx = createExecutionContext();
 const db = initDBInstance(ctx, env);
 
 describe('content.service', () => {
   afterEach(() => {
-    // Reset mocks/spies after each test
+    // Reset all mocks and spies after each test to ensure test isolation
     vi.restoreAllMocks();
     vi.clearAllMocks();
   });
@@ -18,23 +19,29 @@ describe('content.service', () => {
   //
   // UTILITIES / SETUP
   //
+  /**
+   * Forces a database error for testing error handling scenarios
+   * @param methodName - The database method to mock
+   * @param impl - The implementation that throws the error
+   */
   const forceDBError = (methodName: string, impl: () => any) => {
     const instance = getInstance(ctx);
-    if (!instance) throw new Error('Ctx instance not found.');
+    if (!instance) throw new Error('Context instance not found');
     if (methodName in instance.db) {
-      // @ts-expect-error
+      // @ts-expect-error - We're intentionally mocking the method
       const property = instance.db[methodName] as unknown;
       if (typeof property === 'function') {
-        // @ts-expect-error
+        // @ts-expect-error - We're intentionally mocking the method
         vi.spyOn(instance.db, methodName).mockImplementation(impl as any);
       }
     }
   };
 
-  // Helper to create an author if needed (since authorId references usersSchema).
-  // In your real tests, you might have a separate user creation utility.
+  /**
+   * Creates a test user if needed for content creation
+   * This is required because content references a user through authorId
+   */
   async function createUserIfNeeded() {
-    // If your code references a user table, you might do:
     return await db.users.createUser({
       username: 'test',
       email: 'test@flaresite.com',
@@ -46,19 +53,19 @@ describe('content.service', () => {
   // CREATE CONTENT
   //
   describe('create', () => {
-    it('should create a new content entry with valid required fields', async () => {
-      const author = await createUserIfNeeded(); // from hypothetical utility
+    it('creates a new content entry with all required fields', async () => {
+      const author = await createUserIfNeeded();
       const input: Parameters<typeof db.content.create>[0] = {
-        type: 'post', // from enum ['post','page']
+        type: 'post', // Must be one of ['post', 'page']
         title: 'A new post',
-        slug: 'unique-slug-123', // must be unique
+        slug: 'unique-slug-123', // Must be unique
         content: 'Hello world!',
-        authorId: author.id, // references user
-        // status is optional, defaults to 'draft'
+        authorId: author.id, // References the user who created the content
+        // status is optional and defaults to 'draft'
       };
       const result = await db.content.create(input);
 
-      // Basic expectations
+      // Verify all required fields are set correctly
       expect(result.id).toBeDefined();
       expect(validate(result.id)).toBe(true);
       expect(result.shortId).toBeDefined();
@@ -66,35 +73,33 @@ describe('content.service', () => {
       expect(result.title).toBe('A new post');
       expect(result.slug).toBe('unique-slug-123');
       expect(result.content).toBe('Hello world!');
-      expect(result.status).toBe('draft'); // default
+      expect(result.status).toBe('draft'); // Default value
       expect(result.authorId).toBe(author.id);
 
-      // Check auto-timestamps
+      // Verify auto-generated timestamps
       expect(result.createdAt).toBeDefined();
       expect(result.updatedAt).toBeDefined();
-      // publishedAt is undefined unless we explicitly set it
-      expect(result.publishedAt).toBeNull();
-      // deletedAt is undefined
-      expect(result.deletedAt).toBeNull();
+      expect(result.publishedAt).toBeNull(); // Should be null unless explicitly set
+      expect(result.deletedAt).toBeNull(); // Should be null for new content
     });
 
-    it('should honor any provided status, publishedAt, etc.', async () => {
+    it('honors provided status and publishedAt fields', async () => {
       const input: Parameters<typeof db.content.create>[0] = {
         type: 'page',
         title: 'Status Test',
         slug: 'status-test',
         content: 'Some content',
-        status: 'published', // Overriding default
+        status: 'published', // Override default status
         publishedAt: new Date().toISOString(),
       };
       const result = await db.content.create(input);
 
       expect(result.status).toBe('published');
-      expect(result.publishedAt).toBeDefined(); // we explicitly set it
+      expect(result.publishedAt).toBeDefined();
       expect(result.publishedAt!).toBe(toSQLiteUTCString(input.publishedAt));
     });
 
-    it('should auto-generate shortId if not supplied', async () => {
+    it('auto-generates shortId when not provided', async () => {
       const input: Parameters<typeof db.content.create>[0] = {
         type: 'page',
         title: 'Short ID Test',
@@ -105,35 +110,39 @@ describe('content.service', () => {
       expect(result.shortId).not.toHaveLength(0);
     });
 
-    it('should throw if required fields are missing', async () => {
-      // For instance, 'type' is not null, 'title' is not null, 'slug' is not null
+    it('throws an error when required fields are missing', async () => {
+      // Missing required fields: type, title, and slug
       const badInput: any = {
-        /* missing type, title, slug */
+        /* missing required fields */
       };
-      await expect(db.content.create(badInput)).rejects.toThrow();
+      await expect(db.content.create(badInput)).rejects.toThrow(ServiceError);
     });
 
-    it('should throw if type or status is invalid (violates enum constraint)', async () => {
+    it('throws an error when type or status violates enum constraints', async () => {
       const invalidType: Parameters<typeof db.content.create>[0] = {
-        // @ts-expect-error as we are trying to insert wrong data
+        // @ts-expect-error - Testing invalid type
         type: 'unknown', // Not in ['post', 'page']
         title: 'Invalid Type Test',
         slug: 'invalid-type',
       };
-      await expect(db.content.create(invalidType)).rejects.toThrow();
+      await expect(db.content.create(invalidType)).rejects.toThrow(
+        ServiceError,
+      );
 
       const invalidStatus: Parameters<typeof db.content.create>[0] = {
         type: 'post',
         title: 'Invalid Status Test',
         slug: 'invalid-status',
-        status: 'abcdefg' as any, // Not in ['draft','published','private']
+        status: 'abcdefg' as any, // Not in ['draft', 'published', 'private']
       };
-      await expect(db.content.create(invalidStatus)).rejects.toThrow();
+      await expect(db.content.create(invalidStatus)).rejects.toThrow(
+        ServiceError,
+      );
     });
 
-    it('should throw on DB insertion error', async () => {
+    it('throws an error when database insertion fails', async () => {
       forceDBError('insert', () => {
-        throw new Error('DB Insert Failed');
+        throw new Error('Database insertion failed');
       });
       const input: Parameters<typeof db.content.create>[0] = {
         type: 'post',
@@ -141,7 +150,7 @@ describe('content.service', () => {
         slug: 'error-test',
       };
       await expect(db.content.create(input)).rejects.toThrow(
-        'DB Insert Failed',
+        'Database insertion failed',
       );
     });
   });
@@ -153,7 +162,7 @@ describe('content.service', () => {
     let insertedId: string;
 
     beforeEach(async () => {
-      // Create a record to fetch
+      // Create a test record to fetch
       const created = await db.content.create({
         type: 'post',
         title: 'Single fetch test',
@@ -162,33 +171,36 @@ describe('content.service', () => {
       insertedId = created.id;
     });
 
-    it('should return the content if found and not deleted', async () => {
+    it('returns the content when found and not deleted', async () => {
       const found = await db.content.getById(insertedId);
       expect(found).toBeDefined();
       expect(found?.id).toBe(insertedId);
     });
 
-    it('should return null if no content matches the ID (or is soft-deleted)', async () => {
-      // 1) Non-existent ID
-      const res1 = await db.content.getById('non-existent-id');
-      expect(res1).toBeNull();
+    it('returns null when content is not found or soft-deleted', async () => {
+      // Test with non-existent ID
+      const nonExistentResult = await db.content.getById('non-existent-id');
+      expect(nonExistentResult).toBeNull();
 
-      // 2) Soft-delete existing item, then try to fetch
+      // Test with soft-deleted content
       await db.content.delete(insertedId);
-      const res2 = await db.content.getById(insertedId);
-      expect(res2).toBeNull();
+      const softDeletedResult = await db.content.getById(insertedId);
+      expect(softDeletedResult).toBeNull();
     });
 
-    it('should throw on DB error', async () => {
+    it('throws an error when database query fails', async () => {
       const instance = getInstance(ctx);
-      if (!instance) throw new Error('Ctx instance not found.');
+      if (!instance) throw new Error('Context instance not found');
+
+      // Mock database query to force an error
       vi.spyOn(instance.db.query.content, 'findFirst').mockImplementation(
         () => {
-          throw new Error('DB Select Failed');
+          throw new Error('Database query failed');
         },
       );
+
       await expect(db.content.getById(insertedId)).rejects.toThrow(
-        'DB Select Failed',
+        'Database query failed',
       );
     });
   });
@@ -198,14 +210,14 @@ describe('content.service', () => {
   //
   describe('getList', () => {
     beforeEach(async () => {
-      // Clear table and add a few items
-      // Use the bulkDelete to remove everything
+      // Clear existing content and create test records
       const all = await db.content.getList(undefined, undefined, {});
       if (all.length) {
         const allIds = all.map((c) => c.id);
-        await db.content.bulkDelete(allIds, true); // permanent delete
+        await db.content.bulkDelete(allIds, true); // Permanently delete all existing records
       }
 
+      // Create test content with different types and statuses
       await db.content.create({
         type: 'page',
         title: 'Page A',
@@ -226,47 +238,49 @@ describe('content.service', () => {
       });
     });
 
-    it('should return non-deleted items by default', async () => {
+    it('returns only non-deleted items by default', async () => {
       const list = await db.content.getList();
       expect(list.length).toBe(3);
 
-      // Soft-delete one
+      // Soft-delete one item and verify it's excluded from results
       await db.content.delete(list[0].id);
       const listAfter = await db.content.getList();
       expect(listAfter.length).toBe(2);
     });
 
-    it('should respect the `range` param if provided', async () => {
-      // e.g. range [0,0] => first item only
+    it('respects the range parameter for pagination', async () => {
+      // Get only the first item using range [0, 0]
       const firstItemOnly = await db.content.getList([0, 0]);
       expect(firstItemOnly.length).toBe(1);
     });
 
-    it('should respect the `sort` param if provided', async () => {
-      // Sort by title DESC
+    it('respects the sort parameter for ordering results', async () => {
+      // Sort by title in descending order
       const sortedDesc = await db.content.getList(undefined, ['title', 'DESC']);
-      // Expect the first item has a "higher" (lexicographically) title than the next
+      // Verify the first item's title is lexicographically greater than the second
       expect(sortedDesc[0].title >= sortedDesc[1].title).toBe(true);
     });
 
-    it('should respect the `filter` param if provided', async () => {
-      // Filter by type = 'post'
+    it('respects the filter parameter for filtering results', async () => {
+      // Filter to show only posts
       const postsOnly = await db.content.getList(undefined, undefined, {
         type: 'post',
       });
       expect(postsOnly.every((p) => p.type === 'post')).toBe(true);
     });
 
-    it('should throw on DB error', async () => {
+    it('throws an error when database query fails', async () => {
       const instance = getInstance(ctx);
-      if (!instance) throw new Error('Ctx instance not found.');
-      // Force an error
+      if (!instance) throw new Error('Context instance not found');
+
+      // Mock database query to force an error
       vi.spyOn(instance.db.query.content, 'findMany').mockImplementation(() => {
-        throw new Error('DB FindMany Error');
+        throw new Error('Database query failed');
       });
+
       await expect(
         db.content.getList(undefined, undefined, {}),
-      ).rejects.toThrow('DB FindMany Error');
+      ).rejects.toThrow('Database query failed');
     });
   });
 
@@ -277,6 +291,7 @@ describe('content.service', () => {
     let existingId: string;
 
     beforeEach(async () => {
+      // Create a test record to update
       const item = await db.content.create({
         type: 'page',
         title: 'Update Target',
@@ -286,30 +301,29 @@ describe('content.service', () => {
       existingId = item.id;
     });
 
-    it('should update the content if it exists', async () => {
+    it('updates content when it exists', async () => {
       const updated = await db.content.update(existingId, {
         title: 'Updated Title!',
         status: 'private',
       });
       expect(updated.title).toBe('Updated Title!');
       expect(updated.status).toBe('private');
-      // updatedAt should be changed automatically
-      expect(updated.updatedAt).toBeDefined();
+      expect(updated.updatedAt).toBeDefined(); // Verify timestamp was updated
     });
 
-    it('should throw if the content does not exist', async () => {
+    it('throws an error when content does not exist', async () => {
       await expect(
-        db.content.update('bogus-id', { title: 'Nope' }),
-      ).rejects.toThrow('No record found with ID: bogus-id');
+        db.content.update('non-existent-id', { title: 'Nope' }),
+      ).rejects.toThrow('No record found with ID: non-existent-id');
     });
 
-    it('should throw if DB update fails', async () => {
+    it('throws an error when database update fails', async () => {
       forceDBError('update', () => {
-        throw new Error('DB Update Failed');
+        throw new Error('Database update failed');
       });
       await expect(
         db.content.update(existingId, { title: 'Fail' }),
-      ).rejects.toThrow('DB Update Failed');
+      ).rejects.toThrow('Database update failed');
     });
   });
 
@@ -320,6 +334,7 @@ describe('content.service', () => {
     let createdId: string;
 
     beforeEach(async () => {
+      // Create a test record to delete
       const item = await db.content.create({
         type: 'post',
         title: 'Delete Me',
@@ -328,33 +343,33 @@ describe('content.service', () => {
       createdId = item.id;
     });
 
-    it('should soft-delete by default', async () => {
+    it('performs soft-delete by default', async () => {
       const deleted = await db.content.delete(createdId);
       expect(deleted.deletedAt).toBeDefined();
 
-      // Confirm that getById now returns null
+      // Verify the content is no longer retrievable
       const refetch = await db.content.getById(createdId);
       expect(refetch).toBeNull();
     });
 
-    it('should permanently delete if `permanent=true`', async () => {
+    it('performs permanent delete when permanent=true', async () => {
       await db.content.delete(createdId, true);
       const refetch = await db.content.getById(createdId);
       expect(refetch).toBeNull();
     });
 
-    it('should throw if the item is not found', async () => {
-      await expect(db.content.delete('bad-id')).rejects.toThrow(
-        'No record found with ID: bad-id',
+    it('throws an error when content does not exist', async () => {
+      await expect(db.content.delete('non-existent-id')).rejects.toThrow(
+        'No record found with ID: non-existent-id',
       );
     });
 
-    it('should throw on DB error', async () => {
+    it('throws an error when database delete operation fails', async () => {
       forceDBError('delete', () => {
-        throw new Error('DB Delete Error');
+        throw new Error('Database delete operation failed');
       });
       await expect(db.content.delete(createdId, true)).rejects.toThrow(
-        'DB Delete Error',
+        'Database delete operation failed',
       );
     });
   });
@@ -363,12 +378,13 @@ describe('content.service', () => {
   // BULK UPDATE CONTENT
   //
   describe('bulkUpdate', () => {
-    it('should return [] if updates array is empty', async () => {
-      const res = await db.content.bulkUpdate([]);
-      expect(res).toEqual([]);
+    it('returns an empty array when no updates are provided', async () => {
+      const result = await db.content.bulkUpdate([]);
+      expect(result).toEqual([]);
     });
 
-    it('should update multiple items in a transaction', async () => {
+    it('updates multiple items in a single transaction', async () => {
+      // Create test records to update
       const item1 = await db.content.create({
         type: 'post',
         title: 'Bulk Item 1',
@@ -380,7 +396,7 @@ describe('content.service', () => {
         slug: 'bulk-21',
       });
 
-      // Attempt a bulk update
+      // Prepare bulk update operations
       const updates = [
         {
           id: item1.id,
@@ -388,7 +404,11 @@ describe('content.service', () => {
         },
         { id: item2.id, data: { title: 'Updated Bulk 2' } },
       ];
+
+      // Execute bulk update
       const result = await db.content.bulkUpdate(updates);
+
+      // Verify updates were applied correctly
       expect(result).toHaveLength(2);
       expect(result[0].title).toBe('Updated Bulk 1');
       expect(result[1].title).toBe('Updated Bulk 2');
@@ -399,12 +419,13 @@ describe('content.service', () => {
   // BULK DELETE CONTENT
   //
   describe('bulkDelete', () => {
-    it('should return [] if no IDs are provided', async () => {
-      const res = await db.content.bulkDelete([]);
-      expect(res).toEqual([]);
+    it('returns an empty array when no IDs are provided', async () => {
+      const result = await db.content.bulkDelete([]);
+      expect(result).toEqual([]);
     });
 
-    it('should soft-delete multiple items by default', async () => {
+    it('performs soft-delete on multiple items by default', async () => {
+      // Create test records to delete
       const item1 = await db.content.create({
         type: 'post',
         title: 'Multi-delete 1',
@@ -417,18 +438,22 @@ describe('content.service', () => {
       });
       const ids = [item1.id, item2.id];
 
+      // Execute bulk delete
       const deletedRows = await db.content.bulkDelete(ids);
+
+      // Verify soft-delete was applied
       expect(deletedRows).toHaveLength(2);
       expect(deletedRows.every((r) => r.deletedAt)).toBe(true);
 
-      // Confirm they don't show in getById
+      // Verify items are no longer retrievable
       for (const id of ids) {
         const refetch = await db.content.getById(id);
         expect(refetch).toBeNull();
       }
     });
 
-    it('should permanently delete multiple items if permanent=true', async () => {
+    it('performs permanent delete when permanent=true', async () => {
+      // Create test records to delete
       const item1 = await db.content.create({
         type: 'post',
         title: 'Perm 1',
@@ -441,26 +466,161 @@ describe('content.service', () => {
       });
       const ids = [item1.id, item2.id];
 
+      // Execute permanent delete
       const deleted = await db.content.bulkDelete(ids, true);
       expect(deleted).toHaveLength(2);
 
-      // Verify they’re gone
+      // Verify items are permanently removed
       for (const id of ids) {
         const refetch = await db.content.getById(id);
         expect(refetch).toBeNull();
       }
     });
 
-    it('should not fail if one ID does not exist; it just won’t appear in results', async () => {
+    it('handles non-existent IDs gracefully', async () => {
+      // Create a test record
       const item = await db.content.create({
         type: 'page',
         title: 'Partial Del',
         slug: 'pdel',
       });
+
+      // Attempt to delete existing and non-existent IDs
       const ids = [item.id, 'non-existent'];
       const deletedRows = await db.content.bulkDelete(ids);
+
+      // Verify only the existing item was deleted
       expect(deletedRows).toHaveLength(1);
       expect(deletedRows[0].id).toBe(item.id);
+    });
+
+    it('throws an error when database delete operation fails', async () => {
+      forceDBError('delete', () => {
+        throw new Error('Database delete operation failed');
+      });
+      await expect(db.content.bulkDelete(['any-id'], true)).rejects.toThrow(
+        'Database delete operation failed',
+      );
+    });
+  });
+
+  //
+  // GET CONTENT COUNT
+  //
+  describe('getCount', () => {
+    beforeEach(async () => {
+      // Clear existing content and create test records
+      const all = await db.content.getList(undefined, undefined, {});
+      if (all.length) {
+        const allIds = all.map((c) => c.id);
+        await db.content.bulkDelete(allIds, true); // Permanently delete all existing records
+      }
+
+      // Create test content with different types and statuses
+      await db.content.create({
+        type: 'page',
+        title: 'Page A',
+        slug: 'page-a',
+        status: 'draft',
+      });
+      await db.content.create({
+        type: 'post',
+        title: 'Post B',
+        slug: 'post-b',
+        status: 'published',
+      });
+      await db.content.create({
+        type: 'post',
+        title: 'Post C',
+        slug: 'post-c',
+        status: 'private',
+      });
+    });
+
+    it('returns the total count of non-deleted items', async () => {
+      const count = await db.content.getCount();
+      expect(count).toBe(3);
+
+      // Soft-delete one item and verify count decreases
+      const list = await db.content.getList();
+      await db.content.delete(list[0].id);
+      const countAfter = await db.content.getCount();
+      expect(countAfter).toBe(2);
+    });
+
+    it('respects filter parameters when counting', async () => {
+      // Count only posts
+      const postCount = await db.content.getCount({ type: 'post' });
+      expect(postCount).toBe(2);
+
+      // Count only published content
+      const publishedCount = await db.content.getCount({ status: 'published' });
+      expect(publishedCount).toBe(1);
+    });
+  });
+
+  //
+  // CLEAR CONTENT
+  //
+  describe('clear', () => {
+    beforeEach(async () => {
+      // Clear existing content and create test records
+      const all = await db.content.getList(undefined, undefined, {});
+      if (all.length) {
+        const allIds = all.map((c) => c.id);
+        await db.content.bulkDelete(allIds, true); // Permanently delete all existing records
+      }
+
+      // Create test content
+      await db.content.create({
+        type: 'page',
+        title: 'Page A',
+        slug: 'page-a',
+        status: 'draft',
+      });
+      await db.content.create({
+        type: 'post',
+        title: 'Post B',
+        slug: 'post-b',
+        status: 'published',
+      });
+    });
+
+    it('deletes all records from the content table', async () => {
+      const records = await db.content.getList();
+      expect(records).toHaveLength(2);
+
+      // Delete all records
+      await db.content.bulkDelete(
+        records.map((r) => r.id),
+        true,
+      );
+
+      // Verify table is empty
+      const postDeleteRecords = await db.content.getList();
+      expect(postDeleteRecords).toHaveLength(0);
+    });
+
+    it('handles empty table gracefully', async () => {
+      // Delete all records
+      const records = await db.content.getList();
+      await db.content.bulkDelete(
+        records.map((r) => r.id),
+        true,
+      );
+
+      // Verify table remains empty
+      const postDeleteRecords = await db.content.getList();
+      expect(postDeleteRecords).toHaveLength(0);
+    });
+
+    it('throws an error when database delete operation fails', async () => {
+      forceDBError('delete', () => {
+        throw new Error('Database delete operation failed');
+      });
+      await expect(db.content.bulkDelete(['any-id'], true)).rejects.toThrow(
+        'Database delete operation failed',
+      );
     });
   });
 });

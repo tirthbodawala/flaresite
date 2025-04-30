@@ -12,19 +12,17 @@ import { hashPassword, verifyPassword } from '@utils/auth.util';
 export interface UserInsert extends GenericInsertType {
   username: string;
   email: string;
-  // The DB column is passwordHash, but we’ll often store a hashed value:
   passwordHash?: string;
   role?: 'admin' | 'editor' | 'author' | 'subscriber';
   firstName?: string;
   lastName?: string;
   jsonLd?: string;
-  createdAt?: string; // or Date, if that’s your approach
+  createdAt?: string; // or Date, if that's your approach
 }
 
 // We exclude passwordHash from what we actually return
 export interface UserSelect extends Omit<GenericSelectType, 'deletedAt'> {
   id: string;
-  deletedAt?: string | null;
   username: string;
   email: string;
   role: 'admin' | 'editor' | 'author' | 'subscriber';
@@ -32,6 +30,7 @@ export interface UserSelect extends Omit<GenericSelectType, 'deletedAt'> {
   lastName?: string;
   jsonLd?: string;
   createdAt?: string; // or Date
+  deletedAt?: string | null;
 }
 
 export class UserService extends BaseService<UserInsert, UserSelect> {
@@ -111,18 +110,41 @@ export class UserService extends BaseService<UserInsert, UserSelect> {
   }
 
   /**
-   * 5) Similarly override any other retrieval methods you use (getByShortId, etc.)
+   * 6) Override update method to ensure passwordHash is removed from returned object
    */
-  async getByShortId(
-    shortId: string,
-    includeDeleted = false,
-  ): Promise<UserSelect | null> {
-    const record = await super.getByShortId(shortId, includeDeleted);
-    return record ? this.#omitPasswordHash(record) : null;
+  async update(id: string, data: Partial<UserInsert>): Promise<UserSelect> {
+    const updatedUser = await super.update(id, data);
+    return this.#omitPasswordHash(updatedUser);
   }
 
   /**
-   * 6) Example: verifyCredentials method
+   * 7) Override bulkUpdate to remove passwordHash from all returned records
+   */
+  async bulkUpdate(
+    updates: { id: string; data: Partial<UserInsert> }[],
+  ): Promise<UserSelect[]> {
+    const updatedUsers = await super.bulkUpdate(updates);
+    return updatedUsers.map((user) => this.#omitPasswordHash(user));
+  }
+
+  /**
+   * 8) Override bulkDelete to remove passwordHash from returned records
+   */
+  async bulkDelete(ids: string[], permanent = false): Promise<UserSelect[]> {
+    const deletedUsers = await super.bulkDelete(ids, permanent);
+    return deletedUsers.map((user) => this.#omitPasswordHash(user));
+  }
+
+  /**
+   * 9) Override delete method as well for consistency
+   */
+  async delete(id: string, permanent = false): Promise<UserSelect> {
+    const deletedUser = await super.delete(id, permanent);
+    return this.#omitPasswordHash(deletedUser);
+  }
+
+  /**
+   * Example: verifyCredentials method
    */
   async verifyCredentials(
     usernameOrEmail: string,
@@ -146,7 +168,7 @@ export class UserService extends BaseService<UserInsert, UserSelect> {
     });
     if (!row || !row.passwordHash) return null;
 
-    const isValid = await verifyPassword(plainPassword, row.passwordHash);
+    const isValid = await verifyPassword(plainPassword, row?.passwordHash);
     if (!isValid) return null;
 
     return this.#omitPasswordHash(user);
@@ -157,17 +179,11 @@ export class UserService extends BaseService<UserInsert, UserSelect> {
     value: string,
   ): Promise<UserSelect | null> {
     const columns = getTableColumns(this.schema);
-    const orConditions = [];
-    const andConditions = [];
-    if ('email' in columns) {
-      orConditions.push(eq(columns.email, value));
-    }
-    if ('username' in columns) {
-      orConditions.push(eq(columns.username, value));
-    }
-    if ('deletedAt' in columns) {
-      andConditions.push(isNull(columns.deletedAt));
-    }
+    const orConditions = [
+      eq(columns.email, value),
+      eq(columns.username, value),
+    ];
+    const andConditions = [isNull(columns.deletedAt)];
 
     const records = (await this.ctx.db
       .select()
@@ -178,7 +194,7 @@ export class UserService extends BaseService<UserInsert, UserSelect> {
   }
 
   /**
-   * Utility to remove passwordHash from the returned object, if it’s present.
+   * Utility to remove passwordHash from the returned object, if it's present.
    */
   #omitPasswordHash<T extends { [k: string]: any }>(record: T): T {
     // We simply destructure out passwordHash if it exists,

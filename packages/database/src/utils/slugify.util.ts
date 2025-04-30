@@ -140,8 +140,6 @@ export function slugify(input: string, options: SlugifyOptions = {}): string {
     trim = true,
   } = options;
 
-  console.log('lower::', lower);
-
   const localeMap = locales[locale] || {};
 
   let slug = input

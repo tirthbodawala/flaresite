@@ -9,8 +9,8 @@
     "declarationDir": "./dist/types",
     "outDir": "dist",
     "lib": ["ESNext", "DOM"],
-    "types": ["@cloudflare/workers-types"],
     "paths": {
+      "@/*": ["./src/*"],
       "@schema/*": ["./src/schema/*"],
       "@services/*": ["./src/services/*"],
       "@utils/*": ["./src/utils/*"]

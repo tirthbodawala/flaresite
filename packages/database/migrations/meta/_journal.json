@@ -15,6 +15,13 @@
       "when": 1745994039737,
       "tag": "0001_famous_stark_industries",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1746000481127,
+      "tag": "0002_stormy_energizer",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,7 @@
 import { createExecutionContext, env } from 'cloudflare:test';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { getInstance, initDBInstance, ServiceError } from '@/index';
+import { initDBInstance, ServiceError } from '@/index';
 import { validate } from 'uuid';
-import { toSQLiteUTCString } from '@utils/date.util';
 
 // Initialize test context and database instance
 const ctx = createExecutionContext();
@@ -14,27 +13,6 @@ describe('taxonomy.service', () => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
   });
-
-  //
-  // UTILITIES / SETUP
-  //
-  /**
-   * Forces a database error for testing error handling scenarios
-   * @param methodName - The database method to mock
-   * @param impl - The implementation that throws the error
-   */
-  const forceDBError = (methodName: string, impl: () => any) => {
-    const instance = getInstance(ctx);
-    if (!instance) throw new Error('Context instance not found');
-    if (methodName in instance.db) {
-      // @ts-expect-error - We're intentionally mocking the method
-      const property = instance.db[methodName] as unknown;
-      if (typeof property === 'function') {
-        // @ts-expect-error - We're intentionally mocking the method
-        vi.spyOn(instance.db, methodName).mockImplementation(impl as any);
-      }
-    }
-  };
 
   //
   // CREATE TAXONOMY

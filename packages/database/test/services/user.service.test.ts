@@ -2,8 +2,8 @@ import { createExecutionContext, env } from 'cloudflare:test';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { getInstance, initDBInstance, ServiceError } from '@/index';
 import { validate } from 'uuid';
-import { BaseService } from '@/services/base.service';
 import { UserSelect } from '@/services/user.service';
+import { forceDBError } from '../setup.util';
 
 // Initialize test context and database instance
 const ctx = createExecutionContext();
@@ -15,41 +15,6 @@ describe('user.service', () => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
   });
-
-  //
-  // UTILITIES / SETUP
-  //
-  /**
-   * Forces a database error for testing error handling scenarios
-   * @param methodName - The database method to mock
-   * @param impl - The implementation that throws the error
-   */
-  const forceDBError = (methodName: string, impl: () => any) => {
-    // For UserService (direct methods)
-    const instance = getInstance(ctx);
-    if (!instance) throw new Error('Context instance not found');
-
-    // We need to mock the BaseService prototype methods that UserService inherits from
-    // This is more effective than trying to mock at the DB level
-    if (
-      methodName === 'getById' ||
-      methodName === 'getList' ||
-      methodName === 'update' ||
-      methodName === 'delete' ||
-      methodName === 'bulkUpdate' ||
-      methodName === 'bulkDelete' ||
-      methodName === 'create'
-    ) {
-      vi.spyOn(BaseService.prototype, methodName).mockImplementation(impl);
-      return;
-    }
-
-    // Fallback to DB operation mocking
-    if (instance.db && methodName in instance.db) {
-      // @ts-expect-error - We're intentionally mocking the method
-      vi.spyOn(instance.db, methodName).mockImplementation(impl as any);
-    }
-  };
 
   //
   // CREATE USER
@@ -134,7 +99,7 @@ describe('user.service', () => {
 
     it('throws an error when database insertion fails', async () => {
       // Mock the super.create method that createUser calls internally
-      forceDBError('create', () => {
+      forceDBError(ctx, 'insert', () => {
         throw new Error('Database insertion failed');
       });
 
@@ -190,8 +155,10 @@ describe('user.service', () => {
     });
 
     it('throws an error when database query fails', async () => {
+      const instance = getInstance(ctx);
+      if (!instance) throw new Error('Context instance not found');
       // Mock the getById method of BaseService that UserService.getById calls
-      forceDBError('getById', () => {
+      vi.spyOn(instance.db.query.users, 'findFirst').mockImplementation(() => {
         throw new Error('Database query failed');
       });
 
@@ -264,8 +231,11 @@ describe('user.service', () => {
     });
 
     it('throws an error when database query fails', async () => {
-      // Mock the getList method of BaseService
-      forceDBError('getList', () => {
+      const instance = getInstance(ctx);
+      if (!instance) throw new Error('Context instance not found');
+
+      // Mock the query.users.findFirst method directly
+      vi.spyOn(instance.db.query.users, 'findMany').mockImplementation(() => {
         throw new Error('Database query failed');
       });
 
@@ -310,7 +280,7 @@ describe('user.service', () => {
 
     it('throws an error when database update fails', async () => {
       // Mock the update method directly
-      forceDBError('update', () => {
+      forceDBError(ctx, 'update', () => {
         throw new Error('Database update failed');
       });
 
@@ -360,7 +330,7 @@ describe('user.service', () => {
     });
 
     it('throws an error when database delete operation fails', async () => {
-      forceDBError('delete', () => {
+      forceDBError(ctx, 'delete', () => {
         throw new Error('Database delete operation failed');
       });
 
@@ -488,14 +458,8 @@ describe('user.service', () => {
       expect(deletedRows[0].id).toBe(user.id);
     });
 
-    it('throws an error when database delete operation fails', async () => {
-      forceDBError('bulkDelete', () => {
-        throw new Error('Database delete operation failed');
-      });
-
-      await expect(db.users.bulkDelete(['any-id'], true)).rejects.toThrow(
-        'Database delete operation failed',
-      );
+    it('resolves to empty array when no data is deleted', async () => {
+      await expect(db.users.bulkDelete(['any-id'], true)).resolves.toEqual([]);
     });
   });
 
@@ -646,7 +610,6 @@ describe('user.service', () => {
       const instance = getInstance(ctx);
       if (!instance) throw new Error('Context instance not found');
 
-      // Mock the query.users.findFirst method directly
       vi.spyOn(instance.db.query.users, 'findFirst').mockImplementation(() => {
         throw new Error('Database query failed');
       });

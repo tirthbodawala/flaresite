@@ -12,4 +12,6 @@ export const organizationsSchema = sqliteTable('organizations', {
   socialLinks: text('social_links'),
   jsonLd: text('json_ld'),
   createdAt: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: text('updated_at').default(sql`(CURRENT_TIMESTAMP)`),
+  deletedAt: text('deleted_at'),
 });
